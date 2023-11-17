@@ -1,6 +1,6 @@
+import threading
 import time
 import requests
-import threading
 from enum import Enum
 
 
@@ -12,10 +12,10 @@ class QueueType(Enum):
 
 
 class Summoner:
-    def __init__(self, summoner_name, account_id, profileicon_id, revision_date, id, puuid, summoner_level):
+    def __init__(self, summoner_name, account_id, profile_icon_id, revision_date, id, puuid, summoner_level):
         self.summoner_name = summoner_name
         self.account_id = account_id
-        self.profileicon_id = profileicon_id
+        self.profile_icon_id = profile_icon_id
         self.revision_date = revision_date
         self.id = id
         self.puuid = puuid
@@ -28,13 +28,26 @@ class API:
         self.REGION = region
         self.REGION_SERVER = region_server
         self.RIOT_URL_REGION = f"https://{region}.api.riotgames.com"
-        self.RIOT_URL_RSERVER = f"https://{region_server}.api.riotgames.com"
+        self.RIOT_URL_REGION_SERVER = f"https://{region_server}.api.riotgames.com"
         self.LEFT_REQUESTS = 100
-        self.RIOT_RECOVERING_DELAY_IN_SECONDS = 40
+        self.RIOT_RECOVERING_DELAY_IN_SECONDS = 120
+        self.THREADS_LIST = []
+        self.CLOSING = threading.Event()
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        self.CLOSING.set()
 
     def delay_requests(self, number_of_requests):
         self.LEFT_REQUESTS -= number_of_requests
-        time.sleep(self.RIOT_RECOVERING_DELAY_IN_SECONDS)
+        delay = self.RIOT_RECOVERING_DELAY_IN_SECONDS
+        while delay > 0:
+            if self.CLOSING.is_set():
+                break
+            time.sleep(1)
+            delay -= 1
         self.LEFT_REQUESTS += number_of_requests
 
     def are_there_enough_requests_slots(self, needed_slots):
@@ -45,11 +58,12 @@ class API:
         if self.LEFT_REQUESTS < number_of_requests:
             enough_slots = self.are_there_enough_requests_slots(number_of_requests)
             while enough_slots is False:
-                time.sleep(0.5)
+                time.sleep(1)
                 enough_slots = self.are_there_enough_requests_slots(number_of_requests)
 
         # Threading the used slots recovering
         delay_thread = threading.Thread(target=self.delay_requests, args=(number_of_requests,))
+        self.THREADS_LIST.append(delay_thread)
         delay_thread.start()
 
     def get_summoner(self, summoner_name: str) -> Summoner:
@@ -57,7 +71,8 @@ class API:
         self.prepare_sending(1)
 
         # Getting data
-        url = f"{self.RIOT_URL_RSERVER}/lol/summoner/v4/summoners/by-name/{summoner_name}?api_key={self.KEY}"
+        url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/by-name/{summoner_name}?"
+               f"api_key={self.KEY}")
         response = requests.get(url)
 
         # Exploiting data
@@ -75,9 +90,11 @@ class API:
         self.prepare_sending(1)
 
         # Getting data
-        url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/by-puuid/{puuid}/ids"
-               f"?start={start_number}&count={nb_matches}{f'&type={queue.value}' if queue is not None else ''}"
-               f"?api_key={self.KEY}")
+        url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/by-puuid/{puuid}/ids?"
+               f"start={start_number}"
+               f"&count={nb_matches}"
+               f"{f'&type={queue.value}' if queue is not None else ''}"
+               f"&api_key={self.KEY}")
         response = requests.get(url)
 
         # Exploiting data
@@ -89,7 +106,8 @@ class API:
         self.prepare_sending(1)
 
         # Getting data
-        url = f"{self.RIOT_URL_REGION}/lol/match/v5/matches/{match_id}?api_key={self.KEY}"
+        url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/{match_id}?"
+               f"api_key={self.KEY}")
         response = requests.get(url)
 
         # Exploiting data
