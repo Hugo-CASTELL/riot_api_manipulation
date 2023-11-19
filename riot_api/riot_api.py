@@ -129,7 +129,8 @@ class API_RIOT:
         self.THREADS_LIST.append(delay_thread)
         delay_thread.start()
 
-    def get_riot_account_by_puuid(self, puuid: str):
+    def get_riot_account_by_puuid(self, puuid: str,
+                                  raw_json: bool = False):
         # Needing only one request
         self.prepare_sending(1)
 
@@ -140,12 +141,13 @@ class API_RIOT:
 
         # Exploiting data
         json = response.json()
-        return Riot_Account(puuid,
-                            json['gameName'],
-                            json['tagLine'],
-                            api_riot=self)
+        return json if raw_json is True else Riot_Account(puuid,
+                                                          json['gameName'],
+                                                          json['tagLine'],
+                                                          api_riot=self)
 
-    def get_riot_account_by_ingamename_and_tagline(self, in_game_name: str, tag_line: str):
+    def get_riot_account_by_ingamename_and_tagline(self, in_game_name: str, tag_line: str,
+                                                   raw_json: bool = False):
         # Needing only one request
         self.prepare_sending(1)
 
@@ -156,12 +158,13 @@ class API_RIOT:
 
         # Exploiting data
         json = response.json()
-        return Riot_Account(json['puuid'],
-                            in_game_name,
-                            tag_line,
-                            api_riot=self)
+        return json if raw_json is True else Riot_Account(json['puuid'],
+                                                          in_game_name,
+                                                          tag_line,
+                                                          api_riot=self)
 
-    def get_riot_account_activeshard_by_game_and_puuid(self, game_abbreviating: str, puuid: str):
+    def get_riot_account_activeshard_by_game_and_puuid(self, game_abbreviating: str, puuid: str,
+                                                       raw_json: bool = False):
         # Verifications
         if game_abbreviating not in ['val', 'lor']:
             self.not_implemented_by_riot()
@@ -176,14 +179,15 @@ class API_RIOT:
 
         # Exploiting data
         json = response.json()
-        return json['activeShard']
+        return json if raw_json is True else json['activeShard']
 
     def not_implemented_by_riot(self):
         raise Exception("Not implemented by riot")
 
 
 class API_LEAGUE(API_RIOT):
-    def get_summoner(self, summoner_name: str):
+    def get_summoner(self, summoner_name: str,
+                     raw_json: bool = False):
         # Needing only one request
         self.prepare_sending(1)
 
@@ -194,16 +198,17 @@ class API_LEAGUE(API_RIOT):
 
         # Exploiting data
         json = response.json()
-        return Summoner(summoner_name,
-                        json['accountId'],
-                        json['profileIconId'],
-                        json['revisionDate'],
-                        json['id'],
-                        json['puuid'],
-                        json['summonerLevel'],
-                        api_league=self)
+        return json if raw_json is True else Summoner(summoner_name,
+                                                      json['accountId'],
+                                                      json['profileIconId'],
+                                                      json['revisionDate'],
+                                                      json['id'],
+                                                      json['puuid'],
+                                                      json['summonerLevel'],
+                                                      api_league=self)
 
-    def list_match_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None):
+    def list_match_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None,
+                       raw_json: bool = False):
         # Needing only one request
         self.prepare_sending(1)
 
@@ -217,7 +222,7 @@ class API_LEAGUE(API_RIOT):
 
         # Exploiting data
         json = response.json()
-        return [match_id for match_id in json]
+        return json if raw_json is True else [match_id for match_id in json]
 
     def get_match_info(self, match_id: str):
         # Needing only one request
@@ -234,7 +239,8 @@ class API_LEAGUE(API_RIOT):
 
 
 class API_VALORANT(API_RIOT):
-    def list_match_ids(self, puuid: str):
+    def list_match_ids(self, puuid: str,
+                       raw_json: bool = False):
         # Needing only one request
         self.prepare_sending(1)
 
@@ -245,7 +251,7 @@ class API_VALORANT(API_RIOT):
 
         # Exploiting data
         json = response.json()
-        return [match_id for match_id in json]
+        return json if raw_json else [match_id for match_id in json]
 
     def get_match_info(self, match_id: str):
         # Needing only one request
@@ -292,10 +298,11 @@ class Summoner:
         self.summonerLevel = summoner_level
         self.api_league = api_league
 
-    def get_match_history(self, nb_matches: int = 30, start_number: int = 0, queue: QueueType = None):
+    def get_match_history(self, nb_matches: int = 30, start_number: int = 0, queue: QueueType = None,
+                          raw_json: bool = False):
         if self.api_league is None:
             raise Exception(f"Summoner: {self.summoner_name} has no internal api league specified.")
 
-        return self.api_league.list_match_ids(self.puuid, nb_matches, start_number, queue)
+        return self.api_league.list_match_ids(self.puuid, nb_matches, start_number, queue, raw_json)
 
 # endregion
