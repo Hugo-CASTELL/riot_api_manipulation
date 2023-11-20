@@ -1,4 +1,4 @@
-# riot_api_manipulation : access games' data easily
+# riot_api_manipulation : access games' data with ease
 ![Logo Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
 
 ### Content
@@ -10,11 +10,11 @@
 
 ## 📕 Description
 
-The aim of the project is to help developers to manipulate [Riot APIs](https://developer.riotgames.com/apis).
+The aim of the project is to assist developers and data analysts in manipulating [Riot APIs](https://developer.riotgames.com/apis) and making their life easier.
 
-With optimized auto-tracking on left requests due to riot limitations and shortcuts to access data, do not worry more on how will your project manipulate riot api.
+With optimized auto-tracking on left requests due to riot limitations and shortcuts to access data, do not worry more on how will your project access data from riot api.
 
-Write cleaner and better code while making your life easier.
+Write cleaner code while being faster.
 
 ## ✅ Release
 [![Version 0.0.5](https://img.shields.io/badge/0.0.5-%2316c60c.svg?style=for-the-badge&label=version)](https://test.pypi.org/project/riot-api-manipulation/)
@@ -39,7 +39,8 @@ python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps riot-
 
 ### 2. Important point : opening and closing
 
-API uses threads to track left requests, API.close() terminates subprocesses. It should absolutely appear at the end of a script or at the closing of your application.
+API uses threads to track left requests, API.close() terminates subprocesses.
+Be aware that threads can exist during 2 to 30 minutes depending on your api-key type if api is not closed so make sure to add it at the end of a script or at the closing of your application.
 ```python
 api_league = API_LEAGUE("YOUR_API_KEY", "europe", "euw1")
 # Exploiting api [...]
