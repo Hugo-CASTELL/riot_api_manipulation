@@ -1,8 +1,17 @@
-import threading
 import time
+import json as json_lib
 import requests
+import threading
 from enum import Enum
 
+
+# region Helpers
+
+def json_format_str(json):
+    return json_lib.dumps(json, indent=2)
+
+
+# endregion Helpers
 
 # region Enums
 
@@ -207,8 +216,8 @@ class API_LEAGUE(API_RIOT):
                                                       json['summonerLevel'],
                                                       api_league=self)
 
-    def list_match_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None,
-                       raw_json: bool = False):
+    def list_match_only_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None,
+                            summoner_associated=None, raw_json: bool = False):
         # Needing only one request
         self.prepare_sending(1)
 
@@ -222,9 +231,10 @@ class API_LEAGUE(API_RIOT):
 
         # Exploiting data
         json = response.json()
-        return json if raw_json is True else [match_id for match_id in json]
+        return json if raw_json is True else [League_Match(match_id, summoner=summoner_associated, api_league=self) for match_id in json]
 
-    def get_match_info(self, match_id: str):
+    def get_match_infos(self, match_id: str,
+                        raw_json: bool = False):
         # Needing only one request
         self.prepare_sending(1)
 
@@ -235,7 +245,21 @@ class API_LEAGUE(API_RIOT):
 
         # Exploiting data
         json = response.json()
-        return json
+        return json if raw_json is True else League_Match(match_id, json=json, api_league=self)
+
+    def get_match_timeline(self, match_id: str,
+                           raw_json: bool = False):
+        # Needing only one request
+        self.prepare_sending(1)
+
+        # Getting data
+        url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/{match_id}/timeline?"
+               f"api_key={self.KEY}")
+        response = requests.get(url)
+
+        # Exploiting data
+        json = response.json()
+        return json if raw_json is True else League_Match(match_id, json_timeline=json, api_league=self)
 
 
 class API_VALORANT(API_RIOT):
@@ -253,7 +277,7 @@ class API_VALORANT(API_RIOT):
         json = response.json()
         return json if raw_json else [match_id for match_id in json]
 
-    def get_match_info(self, match_id: str):
+    def get_match_infos(self, match_id: str):
         # Needing only one request
         self.prepare_sending(1)
 
@@ -265,6 +289,7 @@ class API_VALORANT(API_RIOT):
         # Exploiting data
         json = response.json()
         return json
+
 
 # endregion APIs
 
@@ -298,11 +323,104 @@ class Summoner:
         self.summonerLevel = summoner_level
         self.api_league = api_league
 
+    def __str__(self):
+        return str(vars(self))
+
     def get_match_history(self, nb_matches: int = 30, start_number: int = 0, queue: QueueType = None,
+                          load_infos: bool = False, load_timelines: bool = False,
                           raw_json: bool = False):
         if self.api_league is None:
             raise Exception(f"Summoner: {self.summoner_name} has no internal api league specified.")
 
-        return self.api_league.list_match_ids(self.puuid, nb_matches, start_number, queue, raw_json)
+        matches = self.api_league.list_match_only_ids(self.puuid, nb_matches, start_number, queue, summoner_associated=self, raw_json=raw_json)
+
+        load_something: bool = raw_json is False and (load_infos is True or load_timelines is True)
+
+        if load_something is True:
+            for match in matches:
+                if load_infos is True and load_timelines is True:
+                    match.get_full_infos()
+                elif load_infos is True:
+                    match.get_infos()
+                elif load_timelines is True:
+                    match.get_timeline()
+
+        return matches
+
+    def get_last_game(self, queue: QueueType = None,
+                      raw_json: bool = False):
+        return self.get_match_history(nb_matches=1, start_number=0, queue=queue, raw_json=raw_json)[0]
+
+
+class League_Match:
+    def __init__(self, match_id,
+                 summoner: Summoner = None, json=None, json_timeline=None, api_league: API_LEAGUE = None):
+        self.match_id = match_id
+        self.summoner = summoner
+        self.api_league = api_league
+        self.json = json
+        self.json_timeline = json_timeline
+        if json is not None:
+            self.metadata = json['metadata']
+            self.infos = json['info']
+
+    def __str__(self):
+        if self.infos is not None:
+            return json_format_str(self.infos)
+        else:
+            return str(vars(self))
+
+    def __getitem__(self, item):
+        if self.json is None:
+            raise Exception(f"League_Match: {self.match_id} infos (json) is not loaded.")
+
+        return self.json['metadata'][item]
+
+    def get_infos(self,
+                  raw_json: bool = False):
+        if self.api_league is None:
+            raise Exception(f"League_Match: {self.match_id} has no internal api league specified.")
+
+        # Getting json
+        json = self.api_league.get_match_infos(self.match_id, raw_json=True)
+
+        # Processing for object
+        self.json = json
+        self.metadata = json['metadata']
+        self.infos = json['info']
+
+        # Return statement
+        return json if raw_json else self
+
+    def get_infos_of_summoner(self,
+                              puuid: str = None):
+        if self.summoner is None:
+            raise Exception(f"League_Match: {self.match_id} has no internal summoner specified.")
+
+        if self.json is None:
+            self.get_infos()
+
+        index = self.metadata['participants'].index(self.summoner.puuid if puuid is None else puuid)
+        return self.infos['participants'][index]
+
+    def get_timeline(self,
+                     raw_json: bool = False):
+        if self.api_league is None:
+            raise Exception(f"League_Match: {self.match_id} has no internal api league specified.")
+
+        # Getting json
+        json_timeline = self.api_league.get_match_timeline(self.match_id, raw_json=True)
+
+        # Processing for object
+        self.json_timeline = json_timeline
+
+        # Return statement
+        return json_timeline if raw_json else self
+
+    def get_full_infos(self):
+        self.get_infos()
+        self.get_timeline()
+        return self
+
 
 # endregion
