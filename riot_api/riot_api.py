@@ -67,6 +67,11 @@ class API_RIOT:
         self.THREADS_LIST = []
         self.CLOSING = threading.Event()
 
+        #                   #
+        # Custom attributes #
+        #                   #
+        self.TOTAL_SENT_REQUESTS = 0
+
     def __del__(self):
         # Closing on delete to avoid processes running with no father
         self.close()
@@ -138,18 +143,41 @@ class API_RIOT:
         self.THREADS_LIST.append(delay_thread)
         delay_thread.start()
 
-    def get_riot_account_by_puuid(self, puuid: str,
-                                  raw_json: bool = False):
-        # Needing only one request
+    def get_json(self, url):
+        # Notifying one request used
         self.prepare_sending(1)
 
+        # Sending requests
+        self.TOTAL_SENT_REQUESTS += 1
+        response = requests.get(url)
+
+        # Common errors
+        code = response.status_code
+        match code:
+            case 400: raise Exception("400 : Bad request")  # Url parameters problem (type, not passing regex...)
+            case 401: raise Exception("401 : Unauthorized")  # Api key may be expired
+            case 403: raise Exception("403 : Forbidden")  # Check request formulation (spelling, cases...)
+            case 404: raise Exception("404 : Data not found")  
+            case 405: raise Exception("405 : Method not allowed")
+            case 415: raise Exception("415 : Unsupported media type")
+            case 429: raise Exception("429 : Rate limit exceeded")  # Should not be possible with API
+            case 500: raise Exception("500 : Internal server error")  # Riot server error: consider retry
+            case 502: raise Exception("502 : Bad gateway")  # Absent or not enough connexion 
+            case 503: raise Exception("503 : Service unavailable")  # Riot service is down
+            case 504: raise Exception("504 : Gateway timeout")  # Absent or not enough connexion 
+
+        # If no errors then return json
+        json = response.json()
+        return json
+
+    def get_riot_account_by_puuid(self, puuid: str,
+                                  raw_json: bool = False):
         # Getting data
         url = (f"{self.RIOT_URL_REGION}/riot/account/v1/accounts/by-puuid/{puuid}?"
                f"api_key={self.KEY}")
-        response = requests.get(url)
+        json = self.get_json(url)
 
         # Exploiting data
-        json = response.json()
         return json if raw_json is True else Riot_Account(puuid,
                                                           json['gameName'],
                                                           json['tagLine'],
@@ -157,16 +185,12 @@ class API_RIOT:
 
     def get_riot_account_by_ingamename_and_tagline(self, in_game_name: str, tag_line: str,
                                                    raw_json: bool = False):
-        # Needing only one request
-        self.prepare_sending(1)
-
         # Getting data
         url = (f"{self.RIOT_URL_REGION}/riot/account/v1/accounts/by-riot-id/{in_game_name}/{tag_line}?"
                f"api_key={self.KEY}")
-        response = requests.get(url)
+        json = self.get_json(url)
 
         # Exploiting data
-        json = response.json()
         return json if raw_json is True else Riot_Account(json['puuid'],
                                                           in_game_name,
                                                           tag_line,
@@ -178,16 +202,12 @@ class API_RIOT:
         if game_abbreviating not in ['val', 'lor']:
             self.not_implemented_by_riot()
 
-        # Needing only one request
-        self.prepare_sending(1)
-
         # Getting data
         url = (f"{self.RIOT_URL_REGION}/riot/account/v1/accounts/by-game/{game_abbreviating}/by-puuid/{puuid}?"
                f"api_key={self.KEY}")
-        response = requests.get(url)
+        json = self.get_json(url)
 
         # Exploiting data
-        json = response.json()
         return json if raw_json is True else json['activeShard']
 
     def not_implemented_by_riot(self):
@@ -197,16 +217,12 @@ class API_RIOT:
 class API_LEAGUE(API_RIOT):
     def get_summoner(self, summoner_name: str,
                      raw_json: bool = False):
-        # Needing only one request
-        self.prepare_sending(1)
-
         # Getting data
         url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/by-name/{summoner_name}?"
                f"api_key={self.KEY}")
-        response = requests.get(url)
+        json = self.get_json(url)
 
         # Exploiting data
-        json = response.json()
         return json if raw_json is True else Summoner(summoner_name,
                                                       json['accountId'],
                                                       json['profileIconId'],
@@ -218,76 +234,56 @@ class API_LEAGUE(API_RIOT):
 
     def list_match_only_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None,
                             summoner_associated=None, raw_json: bool = False):
-        # Needing only one request
-        self.prepare_sending(1)
-
         # Getting data
         url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/by-puuid/{puuid}/ids?"
                f"start={start_number}"
                f"&count={nb_matches}"
                f"{f'&type={queue.value}' if queue is not None else ''}"
                f"&api_key={self.KEY}")
-        response = requests.get(url)
+        json = self.get_json(url)
 
         # Exploiting data
-        json = response.json()
         return json if raw_json is True else [League_Match(match_id, summoner=summoner_associated, api_league=self) for match_id in json]
 
     def get_match_infos(self, match_id: str,
                         raw_json: bool = False):
-        # Needing only one request
-        self.prepare_sending(1)
-
         # Getting data
         url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/{match_id}?"
                f"api_key={self.KEY}")
-        response = requests.get(url)
+        json = self.get_json(url)
 
         # Exploiting data
-        json = response.json()
         return json if raw_json is True else League_Match(match_id, json=json, api_league=self)
 
     def get_match_timeline(self, match_id: str,
                            raw_json: bool = False):
-        # Needing only one request
-        self.prepare_sending(1)
-
         # Getting data
         url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/{match_id}/timeline?"
                f"api_key={self.KEY}")
-        response = requests.get(url)
+        json = self.get_json(url)
 
         # Exploiting data
-        json = response.json()
         return json if raw_json is True else League_Match(match_id, json_timeline=json, api_league=self)
 
 
 class API_VALORANT(API_RIOT):
     def list_match_ids(self, puuid: str,
                        raw_json: bool = False):
-        # Needing only one request
-        self.prepare_sending(1)
-
         # Getting data
         url = (f"{self.RIOT_URL_REGION}/val/match/v1/matchlists/by-puuid/{puuid}?"
                f"api_key={self.KEY}")
-        response = requests.get(url)
+        json = self.get_json(url)
 
         # Exploiting data
-        json = response.json()
         return json if raw_json else [match_id for match_id in json]
 
     def get_match_infos(self, match_id: str):
-        # Needing only one request
-        self.prepare_sending(1)
-
         # Getting data
         url = (f"{self.RIOT_URL_REGION}/val/match/v1/matches/{match_id}?"
                f"api_key={self.KEY}")
-        response = requests.get(url)
+        json = self.get_json(url)
 
         # Exploiting data
-        json = response.json()
         return json
 
 
