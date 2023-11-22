@@ -79,6 +79,10 @@ class API_RIOT:
     def close(self):
         # Activating the closing event to end all the threads sons
         self.CLOSING.set()
+        
+    def raise_exception(self, error_text: str):
+        self.close()
+        raise Exception(error_text)
 
     def delay_requests(self, number_of_requests):
         # Updating left requests
@@ -123,7 +127,7 @@ class API_RIOT:
 
                 # Max iteration is two seconds => it means there are too much requests for apiKey capacity
                 if iter_counter == 2 and enough_slots is False:
-                    raise Exception("Impossible to run this amount of requests in a second with your apiKey capacity")
+                    self.raise_exception("Impossible to run this amount of requests in a second with your apiKey capacity")
 
         # Waiting for enough requests slots if needed
         if self.LEFT_REQUESTS < number_of_requests:
@@ -136,7 +140,7 @@ class API_RIOT:
 
                 # Max iteration is the max delay => it means there are too much requests for apiKey capacity
                 if iter_counter > self.RIOT_RECOVERING_DELAY_IN_SECONDS and enough_slots is False:
-                    raise Exception("Impossible to run this amount of requests with your apiKey capacity")
+                    self.raise_exception("Impossible to run this amount of requests with your apiKey capacity")
 
         # Threading the used slots recovering
         delay_thread = threading.Thread(target=self.delay_requests, args=(number_of_requests,))
@@ -154,16 +158,16 @@ class API_RIOT:
         # Common errors
         code = response.status_code
         match code:
-            case 400: raise Exception("400 : Bad request")  # Url parameters problem (type, not passing regex...)
-            case 401: raise Exception("401 : Unauthorized")  # Api key may be expired
-            case 403: raise Exception("403 : Forbidden")  # Check request formulation (spelling, cases...)
-            case 404: raise Exception("404 : Data not found")  # Data was not found but request was well written
-            case 405: raise Exception("405 : Method not allowed")  # Your apikey can't access this method
-            case 415: raise Exception("415 : Unsupported media type")  # Change your media type
-            case 500: raise Exception("500 : Internal server error")  # Riot server error: consider retry
-            case 502: raise Exception("502 : Bad gateway")  # Absent or not enough connexion 
-            case 503: raise Exception("503 : Service unavailable")  # Riot service is down
-            case 504: raise Exception("504 : Gateway timeout")  # Absent or not enough connexion 
+            case 400: self.raise_exception("400 : Bad request")  # Url parameters problem (type, not passing regex...)
+            case 401: self.raise_exception("401 : Unauthorized")  # Api key may be expired
+            case 403: self.raise_exception("403 : Forbidden")  # Check request formulation (spelling, cases...)
+            case 404: self.raise_exception("404 : Data not found")  # Data was not found but request was well written
+            case 405: self.raise_exception("405 : Method not allowed")  # Your apikey can't access this method
+            case 415: self.raise_exception("415 : Unsupported media type")  # Change your media type
+            case 500: self.raise_exception("500 : Internal server error")  # Riot server error: consider retry
+            case 502: self.raise_exception("502 : Bad gateway")  # Absent or not enough connexion 
+            case 503: self.raise_exception("503 : Service unavailable")  # Riot service is down
+            case 504: self.raise_exception("504 : Gateway timeout")  # Absent or not enough connexion 
             case 429:  # 429 : Rate limit exceeded => delay request
                 time.sleep(self.RIOT_RECOVERING_DELAY_IN_SECONDS)
                 self.get_json(url)
@@ -214,7 +218,7 @@ class API_RIOT:
         return json if raw_json is True else json['activeShard']
 
     def not_implemented_by_riot(self):
-        raise Exception("Not implemented by riot")
+        self.raise_exception("Not implemented by riot")
 
 
 class API_LEAGUE(API_RIOT):
