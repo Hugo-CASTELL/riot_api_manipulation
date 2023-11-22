@@ -11,10 +11,10 @@
 
 ## 💯 Covering
 
-![](https://geps.dev/progress/40) League of Legends 
-![](https://geps.dev/progress/40) Valorant
-![](https://geps.dev/progress/0) Teamfight Tactics
-![](https://geps.dev/progress/0) League of Runeterra
+- League of Legends   ![](https://geps.dev/progress/40) 
+- Valorant            ![](https://geps.dev/progress/40) 
+- Teamfight Tactics   ![](https://geps.dev/progress/0)  
+- League of Runeterra ![](https://geps.dev/progress/0)  
 
 ## 📕 Description
 

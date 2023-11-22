@@ -15,6 +15,32 @@ def json_format_str(json):
 
 # region Enums
 
+class Region(Enum):
+    AMERICAS = 'americas'
+    ASIA = 'asia'
+    ESPORTS = 'esports'
+    EUROPE = 'europe'
+
+
+class Server(Enum):
+    BRAZIL = 'br1'
+    EU_WEST = 'euw1'
+    EU_NORTH = 'eun1'
+    JAPAN = 'jp1'
+    KOREA = 'kr'
+    LATIN_AMERICA_1 = 'kr'
+    LATIN_AMERICA_2 = 'kr'
+    NORTH_AMERICA = 'na1'
+    OCEANIA = 'oc1'
+    PHILIPPINES = 'ph2'
+    RUSSIA = 'ru'
+    SG2 = 'sg2'
+    TH2 = 'th2'
+    TR1 = 'tr1'
+    TW2 = 'tw2'
+    VN2 = 'vn2'
+
+
 class QueueType(Enum):
     RANKED = 'ranked'
     NORMAL = 'normal'
@@ -27,15 +53,15 @@ class QueueType(Enum):
 # region APIs
 
 class API_RIOT:
-    def __init__(self, key: str, region: str, region_server: str, is_prod_key: bool = False,
+    def __init__(self, key: str, region: Region | str, region_server: Server | str, is_prod_key: bool = False,
                  custom_max_requests_capacity: int = None, custom_max_requests_capacity_per_second: int = None,
                  custom_delay_for_recovering_all_requests: int = None):
         #                        #
         # Helpers to connect api #
         #                        #
         self.KEY = key
-        self.REGION = region
-        self.REGION_SERVER = region_server
+        self.REGION = region.value if type(region) is Region else region
+        self.REGION_SERVER = region_server.value if type(region_server) is Server else region_server
         self.RIOT_URL_REGION = f"https://{region}.api.riotgames.com"
         self.RIOT_URL_REGION_SERVER = f"https://{region_server}.api.riotgames.com"
 
@@ -222,73 +248,49 @@ class API_RIOT:
 
 
 class API_LEAGUE(API_RIOT):
-    def get_summoner_by_name(self, summoner_name: str,
-                             raw_json: bool = False):
+
+    #                         #
+    # --- Private helpers --- #
+    #                         #
+    def __process_summoner(self, url, raw_json: bool):
         # Getting data
-        url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/by-name/{summoner_name}?"
-               f"api_key={self.KEY}")
         json = self.get_json(url)
 
         # Exploiting data
-        return json if raw_json is True else Summoner(summoner_name,
-                                                      json['accountId'],
-                                                      json['profileIconId'],
-                                                      json['revisionDate'],
-                                                      json['id'],
-                                                      json['puuid'],
-                                                      json['summonerLevel'],
-                                                      api_league=self)
+        return json if raw_json is True else Summoner(json_builder=json, api_league=self)
+
+    #                                   #
+    # --- API routes function forms --- #
+    #                                   #
+    # SUMMONER V4
+    def get_summoner_by_name(self, summoner_name: str,
+                             raw_json: bool = False):
+        url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/by-name/{summoner_name}?"
+               f"api_key={self.KEY}")
+
+        return self.__process_summoner(url, raw_json)
 
     def get_summoner_by_account_id(self, account_id: str,
                                    raw_json: bool = False):
-        # Getting data
         url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/by-account/{account_id}?"
                f"api_key={self.KEY}")
-        json = self.get_json(url)
 
-        # Exploiting data
-        return json if raw_json is True else Summoner(json['summonerName'],
-                                                      account_id,
-                                                      json['profileIconId'],
-                                                      json['revisionDate'],
-                                                      json['id'],
-                                                      json['puuid'],
-                                                      json['summonerLevel'],
-                                                      api_league=self)
+        return self.__process_summoner(url, raw_json)
 
     def get_summoner_by_puuid(self, puuid: str,
                               raw_json: bool = False):
-        # Getting data
         url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/by-puuid/{puuid}?"
                f"api_key={self.KEY}")
-        json = self.get_json(url)
 
-        # Exploiting data
-        return json if raw_json is True else Summoner(json['summonerName'],
-                                                      json['accountId'],
-                                                      json['profileIconId'],
-                                                      json['revisionDate'],
-                                                      json['id'],
-                                                      puuid,
-                                                      json['summonerLevel'],
-                                                      api_league=self)
+        return self.__process_summoner(url, raw_json)
 
     def get_summoner_by_summoner_id(self, summoner_id: str,
                                     raw_json: bool = False):
         # Getting data
         url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/{summoner_id}?"
                f"api_key={self.KEY}")
-        json = self.get_json(url)
 
-        # Exploiting data
-        return json if raw_json is True else Summoner(json['summonerName'],
-                                                      json['accountId'],
-                                                      json['profileIconId'],
-                                                      json['revisionDate'],
-                                                      summoner_id,
-                                                      json['puuid'],
-                                                      json['summonerLevel'],
-                                                      api_league=self)
+        return self.__process_summoner(url, raw_json)
 
     def list_match_only_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None,
                             summoner_associated=None, raw_json: bool = False):
@@ -331,9 +333,7 @@ class API_LEAGUE(API_RIOT):
         json = self.get_json(url)
 
         # Exploiting data
-        return json if raw_json is True else Champion_Rotation(json['maxNewPlayerLevel'],
-                                                               json['freeChampionIds'],
-                                                               json['freeChampionIdsForNewPlayers'])
+        return json if raw_json is True else Champion_Rotation(json_builder=json)
 
 
 class API_VALORANT(API_RIOT):
@@ -378,7 +378,8 @@ class Riot_Account:
 
 
 class Summoner:
-    def __init__(self, summoner_name, account_id, profile_icon_id, revision_date, id, puuid, summoner_level,
+    def __init__(self, summoner_name=None, account_id=None, profile_icon_id=None, revision_date=None, id=None, puuid=None, summoner_level=None,
+                 json_builder=None,
                  api_league: API_LEAGUE = None):
         self.summoner_name = summoner_name
         self.account_id = account_id
@@ -387,6 +388,16 @@ class Summoner:
         self.id = id
         self.puuid = puuid
         self.summonerLevel = summoner_level
+
+        if json_builder is not None:
+            self.summoner_name = str(json_builder['summonerName']),
+            self.account_id = str(json_builder['accountId']),
+            self.profile_icon_id = str(json_builder['profileIconId']),
+            self.revision_date = str(json_builder['revisionDate']),
+            self.id = str(json_builder['id']),
+            self.puuid = str(json_builder['puuid'])[0],
+            self.summonerLevel = str(json_builder['summonerLevel'])
+
         self.api_league = api_league
 
     def __str__(self):
@@ -490,11 +501,18 @@ class League_Match:
 
 
 class Champion_Rotation:
-    def __init__(self, max_new_player_level, free_champion_ids, free_champion_ids_for_new_players,
+    def __init__(self, max_new_player_level=None, free_champion_ids=None, free_champion_ids_for_new_players=None,
+                 json_builder=None,
                  api_league: API_LEAGUE = None):
         self.max_new_player_level = max_new_player_level
         self.free_champion_ids = free_champion_ids
         self.free_champion_ids_for_new_players = free_champion_ids_for_new_players
+
+        if json_builder is not None:
+            self.max_new_player_level = json_builder['maxNewPlayerLevel'],
+            self.free_champion_ids = json_builder['freeChampionIds'],
+            self.free_champion_ids_for_new_players = json_builder['freeChampionIdsForNewPlayers']
+
         self.api_league = api_league
 
 
