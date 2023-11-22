@@ -3,10 +3,18 @@
 
 ### Content
 
+- [Covering](#-covering)
 - [Description](#-description)
 - [Release](#-release)
 - [Getting started](#-getting-started)
 - [Documentation](#-documentation)
+
+## 💯 Covering
+
+![](https://geps.dev/progress/40) League of Legends 
+![](https://geps.dev/progress/40) Valorant
+![](https://geps.dev/progress/0) Teamfight Tactics
+![](https://geps.dev/progress/0) League of Runeterra
 
 ## 📕 Description
 

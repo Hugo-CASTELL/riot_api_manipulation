@@ -157,14 +157,17 @@ class API_RIOT:
             case 400: raise Exception("400 : Bad request")  # Url parameters problem (type, not passing regex...)
             case 401: raise Exception("401 : Unauthorized")  # Api key may be expired
             case 403: raise Exception("403 : Forbidden")  # Check request formulation (spelling, cases...)
-            case 404: raise Exception("404 : Data not found")  
-            case 405: raise Exception("405 : Method not allowed")
-            case 415: raise Exception("415 : Unsupported media type")
-            case 429: raise Exception("429 : Rate limit exceeded")  # Should not be possible with API
+            case 404: raise Exception("404 : Data not found")  # Data was not found but request was well written
+            case 405: raise Exception("405 : Method not allowed")  # Your apikey can't access this method
+            case 415: raise Exception("415 : Unsupported media type")  # Change your media type
             case 500: raise Exception("500 : Internal server error")  # Riot server error: consider retry
             case 502: raise Exception("502 : Bad gateway")  # Absent or not enough connexion 
             case 503: raise Exception("503 : Service unavailable")  # Riot service is down
             case 504: raise Exception("504 : Gateway timeout")  # Absent or not enough connexion 
+            case 429:  # 429 : Rate limit exceeded => delay request
+                time.sleep(self.RIOT_RECOVERING_DELAY_IN_SECONDS)
+                self.get_json(url)
+                return
 
         # If no errors then return json
         json = response.json()
