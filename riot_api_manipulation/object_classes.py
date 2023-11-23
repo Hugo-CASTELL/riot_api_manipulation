@@ -1,0 +1,189 @@
+from .enums import QueueType
+from .api_managers import API_RIOT, API_LEAGUE
+from .internal_helpers import json_format_str
+
+
+class Riot_Account:
+    #                                            #
+    # --- Constructor and built-in overrides --- #
+    #                                            #
+    def __init__(self, puuid=None, game_name=None, tag_line=None,
+                 json_builder=None,
+                 api_riot: API_RIOT = None):
+        self.puuid = puuid
+        self.game_name = game_name
+        self.tag_line = tag_line
+
+        if json_builder is not None:
+            self.puuid = json_builder['puuid']
+            self.game_name = json_builder['gameName']
+            self.tag_line = json_builder['tagLine']
+
+        self.api_riot = api_riot
+
+    #                   #
+    # --- Shortcuts --- #
+    #                   #
+    def get_active_shard_by_game(self, game_abbreviating: str):
+        if self.api_riot is None:
+            raise Exception(f"Riot Account: {self.game_name}#{self.tag_line} has no internal api riot specified.")
+
+        self.api_riot.get_riot_account_activeshard_by_game_and_puuid(game_abbreviating, self.puuid)
+
+
+class Summoner:
+    #                                            #
+    # --- Constructor and built-in overrides --- #
+    #                                            #
+    def __init__(self, summoner_name=None, account_id=None, profile_icon_id=None, revision_date=None, id=None,
+                 puuid=None, summoner_level=None,
+                 json_builder=None,
+                 api_league: API_LEAGUE = None):
+        self.summoner_name = summoner_name
+        self.account_id = account_id
+        self.profile_icon_id = profile_icon_id
+        self.revision_date = revision_date
+        self.id = id
+        self.puuid = puuid
+        self.summonerLevel = summoner_level
+
+        if json_builder is not None:
+            self.summoner_name = json_builder['summonerName']
+            self.account_id = json_builder['accountId']
+            self.profile_icon_id = json_builder['profileIconId']
+            self.revision_date = json_builder['revisionDate']
+            self.id = json_builder['id']
+            self.puuid = json_builder['puuid'][0]
+            self.summonerLevel = json_builder['summonerLevel']
+
+        self.api_league = api_league
+
+    def __str__(self):
+        return str(vars(self))
+
+    #                   #
+    # --- Shortcuts --- #
+    #                   #
+    def get_match_history(self, nb_matches: int = 30, start_number: int = 0, queue: QueueType = None,
+                          load_infos: bool = False, load_timelines: bool = False,
+                          raw_json: bool = False):
+        if self.api_league is None:
+            raise Exception(f"Summoner: {self.summoner_name} has no internal api league specified.")
+
+        matches = self.api_league.list_match_only_ids(self.puuid, nb_matches, start_number, queue,
+                                                      summoner_associated=self, raw_json=raw_json)
+
+        load_something: bool = raw_json is False and (load_infos is True or load_timelines is True)
+
+        if load_something is True:
+            for match in matches:
+                if load_infos is True and load_timelines is True:
+                    match.get_full_infos()
+                elif load_infos is True:
+                    match.get_infos()
+                elif load_timelines is True:
+                    match.get_timeline()
+
+        return matches
+
+    def get_last_game(self, queue: QueueType = None,
+                      raw_json: bool = False):
+        return self.get_match_history(nb_matches=1, start_number=0, queue=queue, raw_json=raw_json)[0]
+
+
+class League_Match:
+    #                                            #
+    # --- Constructor and built-in overrides --- #
+    #                                            #
+    def __init__(self, match_id,
+                 summoner: Summoner = None, json=None, json_timeline=None, api_league: API_LEAGUE = None):
+        self.match_id = match_id
+        self.summoner = summoner
+        self.api_league = api_league
+        self.json = json
+        self.json_timeline = json_timeline
+        if json is not None:
+            self.metadata = json['metadata']
+            self.infos = json['info']
+
+    def __str__(self):
+        if self.infos is not None:
+            return json_format_str(self.infos)
+        else:
+            return str(vars(self))
+
+    def __getitem__(self, item):
+        if self.json is None:
+            raise Exception(f"League_Match: {self.match_id} infos (json) is not loaded.")
+
+        return self.json['metadata'][item]
+
+    #                   #
+    # --- Shortcuts --- #
+    #                   #
+    def get_infos(self,
+                  raw_json: bool = False):
+        if self.api_league is None:
+            raise Exception(f"League_Match: {self.match_id} has no internal api league specified.")
+
+        # Getting json
+        json = self.api_league.get_match_infos(self.match_id, raw_json=True)
+
+        # Processing for object
+        self.json = json
+        self.metadata = json['metadata']
+        self.infos = json['info']
+
+        # Return statement
+        return json if raw_json else self
+
+    def get_infos_of_summoner(self,
+                              puuid: str = None):
+        if self.summoner is None:
+            raise Exception(f"League_Match: {self.match_id} has no internal summoner specified.")
+
+        if self.json is None:
+            self.get_infos()
+
+        index = self.metadata['participants'].index(self.summoner.puuid if puuid is None else puuid)
+        return self.infos['participants'][index]
+
+    def get_timeline(self,
+                     raw_json: bool = False):
+        if self.api_league is None:
+            raise Exception(f"League_Match: {self.match_id} has no internal api league specified.")
+
+        # Getting json
+        json_timeline = self.api_league.get_match_timeline(self.match_id, raw_json=True)
+
+        # Processing for object
+        self.json_timeline = json_timeline
+
+        # Return statement
+        return json_timeline if raw_json else self
+
+    def get_full_infos(self):
+        self.get_infos()
+        self.get_timeline()
+        return self
+
+
+class Champion_Rotation:
+    #                                            #
+    # --- Constructor and built-in overrides --- #
+    #                                            #
+    def __init__(self, max_new_player_level=None, free_champion_ids=None, free_champion_ids_for_new_players=None,
+                 json_builder=None,
+                 api_league: API_LEAGUE = None):
+        self.max_new_player_level = max_new_player_level
+        self.free_champion_ids = free_champion_ids
+        self.free_champion_ids_for_new_players = free_champion_ids_for_new_players
+
+        if json_builder is not None:
+            self.max_new_player_level = json_builder['maxNewPlayerLevel'],
+            self.free_champion_ids = json_builder['freeChampionIds'],
+            self.free_champion_ids_for_new_players = json_builder['freeChampionIdsForNewPlayers']
+
+        self.api_league = api_league
+
+# endregion

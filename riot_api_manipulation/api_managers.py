@@ -1,58 +1,14 @@
 import time
-import json as json_lib
 import requests
 import threading
-from enum import Enum
+from .enums import *
+from .object_classes import *
 
-
-# region Helpers
-
-def json_format_str(json):
-    return json_lib.dumps(json, indent=2)
-
-
-# endregion Helpers
-
-# region Enums
-
-class Region(Enum):
-    AMERICAS = 'americas'
-    ASIA = 'asia'
-    ESPORTS = 'esports'
-    EUROPE = 'europe'
-
-
-class Server(Enum):
-    BRAZIL = 'br1'
-    EU_WEST = 'euw1'
-    EU_NORTH = 'eun1'
-    JAPAN = 'jp1'
-    KOREA = 'kr'
-    LATIN_AMERICA_1 = 'kr'
-    LATIN_AMERICA_2 = 'kr'
-    NORTH_AMERICA = 'na1'
-    OCEANIA = 'oc1'
-    PHILIPPINES = 'ph2'
-    RUSSIA = 'ru'
-    SG2 = 'sg2'
-    TH2 = 'th2'
-    TR1 = 'tr1'
-    TW2 = 'tw2'
-    VN2 = 'vn2'
-
-
-class QueueType(Enum):
-    RANKED = 'ranked'
-    NORMAL = 'normal'
-    TOURNAMENT = 'tourney'
-    TUTORIAL = 'tutorial'
-
-
-# endregion Enums
-
-# region APIs
 
 class API_RIOT:
+    #                                            #
+    # --- Constructor and built-in overrides --- #
+    #                                            #
     def __init__(self, key: str, region: Region | str, region_server: Server | str, is_prod_key: bool = False,
                  custom_max_requests_capacity: int = None, custom_max_requests_capacity_per_second: int = None,
                  custom_delay_for_recovering_all_requests: int = None):
@@ -102,6 +58,9 @@ class API_RIOT:
         # Closing on delete to avoid processes running with no father
         self.close()
 
+    #                                     #
+    # --- Manager internal mechanisms --- #
+    #                                     #
     def close(self):
         # Activating the closing event to end all the threads sons
         self.CLOSING.set()
@@ -109,6 +68,9 @@ class API_RIOT:
     def raise_exception(self, error_text: str):
         self.close()
         raise Exception(error_text)
+
+    def not_implemented_by_riot(self):
+        self.raise_exception("Not implemented by RIOT")
 
     def delay_requests(self, number_of_requests):
         # Updating left requests
@@ -203,31 +165,33 @@ class API_RIOT:
         json = response.json()
         return json
 
-    def get_riot_account_by_puuid(self, puuid: str,
-                                  raw_json: bool = False):
+    #                         #
+    # --- Private helpers --- #
+    #                         #
+    def __process_riot_account(self, url: str, raw_json: bool):
         # Getting data
-        url = (f"{self.RIOT_URL_REGION}/riot/account/v1/accounts/by-puuid/{puuid}?"
-               f"api_key={self.KEY}")
         json = self.get_json(url)
 
         # Exploiting data
-        return json if raw_json is True else Riot_Account(puuid,
-                                                          json['gameName'],
-                                                          json['tagLine'],
-                                                          api_riot=self)
+        return json if raw_json is True else Riot_Account(json_builder=json, api_riot=self)
+
+    #                                 #
+    # --- API routes as functions --- #
+    #                                 #
+    # ACCOUNT V1
+    def get_riot_account_by_puuid(self, puuid: str,
+                                  raw_json: bool = False):
+        url = (f"{self.RIOT_URL_REGION}/riot/account/v1/accounts/by-puuid/{puuid}?"
+               f"api_key={self.KEY}")
+
+        return self.__process_riot_account(url, raw_json)
 
     def get_riot_account_by_ingamename_and_tagline(self, in_game_name: str, tag_line: str,
                                                    raw_json: bool = False):
-        # Getting data
         url = (f"{self.RIOT_URL_REGION}/riot/account/v1/accounts/by-riot-id/{in_game_name}/{tag_line}?"
                f"api_key={self.KEY}")
-        json = self.get_json(url)
 
-        # Exploiting data
-        return json if raw_json is True else Riot_Account(json['puuid'],
-                                                          in_game_name,
-                                                          tag_line,
-                                                          api_riot=self)
+        return self.__process_riot_account(url, raw_json)
 
     def get_riot_account_activeshard_by_game_and_puuid(self, game_abbreviating: str, puuid: str,
                                                        raw_json: bool = False):
@@ -243,25 +207,22 @@ class API_RIOT:
         # Exploiting data
         return json if raw_json is True else json['activeShard']
 
-    def not_implemented_by_riot(self):
-        self.raise_exception("Not implemented by riot")
-
 
 class API_LEAGUE(API_RIOT):
 
     #                         #
     # --- Private helpers --- #
     #                         #
-    def __process_summoner(self, url, raw_json: bool):
+    def __process_summoner(self, url: str, raw_json: bool):
         # Getting data
         json = self.get_json(url)
 
         # Exploiting data
         return json if raw_json is True else Summoner(json_builder=json, api_league=self)
 
-    #                                   #
-    # --- API routes function forms --- #
-    #                                   #
+    #                                 #
+    # --- API routes as functions --- #
+    #                                 #
     # SUMMONER V4
     def get_summoner_by_name(self, summoner_name: str,
                              raw_json: bool = False):
@@ -286,12 +247,12 @@ class API_LEAGUE(API_RIOT):
 
     def get_summoner_by_summoner_id(self, summoner_id: str,
                                     raw_json: bool = False):
-        # Getting data
         url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/{summoner_id}?"
                f"api_key={self.KEY}")
 
         return self.__process_summoner(url, raw_json)
 
+    # MATCH V5
     def list_match_only_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None,
                             summoner_associated=None, raw_json: bool = False):
         # Getting data
@@ -325,6 +286,7 @@ class API_LEAGUE(API_RIOT):
         # Exploiting data
         return json if raw_json is True else League_Match(match_id, json_timeline=json, api_league=self)
 
+    # CHAMPION V3
     def get_champions_rotation(self,
                                raw_json: bool = False):
         # Getting data
@@ -337,6 +299,10 @@ class API_LEAGUE(API_RIOT):
 
 
 class API_VALORANT(API_RIOT):
+    #                                 #
+    # --- API routes as functions --- #
+    #                                 #
+    # MATCH V1
     def list_match_ids(self, puuid: str,
                        raw_json: bool = False):
         # Getting data
@@ -355,165 +321,3 @@ class API_VALORANT(API_RIOT):
 
         # Exploiting data
         return json
-
-
-# endregion APIs
-
-
-# region Object classes
-
-class Riot_Account:
-    def __init__(self, puuid, game_name, tag_line,
-                 api_riot: API_RIOT = None):
-        self.puuid = puuid
-        self.game_name = game_name
-        self.tag_line = tag_line
-        self.api_riot = api_riot
-
-    def get_active_shard_by_game(self, game_abbreviating: str):
-        if self.api_riot is None:
-            raise Exception(f"Riot Account: {self.game_name}#{self.tag_line} has no internal api riot specified.")
-
-        self.api_riot.get_riot_account_activeshard_by_game_and_puuid(game_abbreviating, self.puuid)
-
-
-class Summoner:
-    def __init__(self, summoner_name=None, account_id=None, profile_icon_id=None, revision_date=None, id=None, puuid=None, summoner_level=None,
-                 json_builder=None,
-                 api_league: API_LEAGUE = None):
-        self.summoner_name = summoner_name
-        self.account_id = account_id
-        self.profile_icon_id = profile_icon_id
-        self.revision_date = revision_date
-        self.id = id
-        self.puuid = puuid
-        self.summonerLevel = summoner_level
-
-        if json_builder is not None:
-            self.summoner_name = str(json_builder['summonerName']),
-            self.account_id = str(json_builder['accountId']),
-            self.profile_icon_id = str(json_builder['profileIconId']),
-            self.revision_date = str(json_builder['revisionDate']),
-            self.id = str(json_builder['id']),
-            self.puuid = str(json_builder['puuid'])[0],
-            self.summonerLevel = str(json_builder['summonerLevel'])
-
-        self.api_league = api_league
-
-    def __str__(self):
-        return str(vars(self))
-
-    def get_match_history(self, nb_matches: int = 30, start_number: int = 0, queue: QueueType = None,
-                          load_infos: bool = False, load_timelines: bool = False,
-                          raw_json: bool = False):
-        if self.api_league is None:
-            raise Exception(f"Summoner: {self.summoner_name} has no internal api league specified.")
-
-        matches = self.api_league.list_match_only_ids(self.puuid, nb_matches, start_number, queue, summoner_associated=self, raw_json=raw_json)
-
-        load_something: bool = raw_json is False and (load_infos is True or load_timelines is True)
-
-        if load_something is True:
-            for match in matches:
-                if load_infos is True and load_timelines is True:
-                    match.get_full_infos()
-                elif load_infos is True:
-                    match.get_infos()
-                elif load_timelines is True:
-                    match.get_timeline()
-
-        return matches
-
-    def get_last_game(self, queue: QueueType = None,
-                      raw_json: bool = False):
-        return self.get_match_history(nb_matches=1, start_number=0, queue=queue, raw_json=raw_json)[0]
-
-
-class League_Match:
-    def __init__(self, match_id,
-                 summoner: Summoner = None, json=None, json_timeline=None, api_league: API_LEAGUE = None):
-        self.match_id = match_id
-        self.summoner = summoner
-        self.api_league = api_league
-        self.json = json
-        self.json_timeline = json_timeline
-        if json is not None:
-            self.metadata = json['metadata']
-            self.infos = json['info']
-
-    def __str__(self):
-        if self.infos is not None:
-            return json_format_str(self.infos)
-        else:
-            return str(vars(self))
-
-    def __getitem__(self, item):
-        if self.json is None:
-            raise Exception(f"League_Match: {self.match_id} infos (json) is not loaded.")
-
-        return self.json['metadata'][item]
-
-    def get_infos(self,
-                  raw_json: bool = False):
-        if self.api_league is None:
-            raise Exception(f"League_Match: {self.match_id} has no internal api league specified.")
-
-        # Getting json
-        json = self.api_league.get_match_infos(self.match_id, raw_json=True)
-
-        # Processing for object
-        self.json = json
-        self.metadata = json['metadata']
-        self.infos = json['info']
-
-        # Return statement
-        return json if raw_json else self
-
-    def get_infos_of_summoner(self,
-                              puuid: str = None):
-        if self.summoner is None:
-            raise Exception(f"League_Match: {self.match_id} has no internal summoner specified.")
-
-        if self.json is None:
-            self.get_infos()
-
-        index = self.metadata['participants'].index(self.summoner.puuid if puuid is None else puuid)
-        return self.infos['participants'][index]
-
-    def get_timeline(self,
-                     raw_json: bool = False):
-        if self.api_league is None:
-            raise Exception(f"League_Match: {self.match_id} has no internal api league specified.")
-
-        # Getting json
-        json_timeline = self.api_league.get_match_timeline(self.match_id, raw_json=True)
-
-        # Processing for object
-        self.json_timeline = json_timeline
-
-        # Return statement
-        return json_timeline if raw_json else self
-
-    def get_full_infos(self):
-        self.get_infos()
-        self.get_timeline()
-        return self
-
-
-class Champion_Rotation:
-    def __init__(self, max_new_player_level=None, free_champion_ids=None, free_champion_ids_for_new_players=None,
-                 json_builder=None,
-                 api_league: API_LEAGUE = None):
-        self.max_new_player_level = max_new_player_level
-        self.free_champion_ids = free_champion_ids
-        self.free_champion_ids_for_new_players = free_champion_ids_for_new_players
-
-        if json_builder is not None:
-            self.max_new_player_level = json_builder['maxNewPlayerLevel'],
-            self.free_champion_ids = json_builder['freeChampionIds'],
-            self.free_champion_ids_for_new_players = json_builder['freeChampionIdsForNewPlayers']
-
-        self.api_league = api_league
-
-
-# endregion
