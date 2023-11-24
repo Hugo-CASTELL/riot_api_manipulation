@@ -74,7 +74,7 @@ class Summoner:
         self.summonerLevel = summoner_level
 
         if json_builder is not None:
-            self.summoner_name = json_builder['summonerName']
+            self.summoner_name = json_builder['name']
             self.account_id = json_builder['accountId']
             self.profile_icon_id = json_builder['profileIconId']
             self.revision_date = json_builder['revisionDate']
