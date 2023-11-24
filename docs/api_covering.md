@@ -1,4 +1,4 @@
-# API's covering
+# API's covering [Work in progress]
 
 ## ACCOUNT-V1 ![](https://geps.dev/progress/75)
 
@@ -19,8 +19,6 @@
 
 ## CLASH-V1 ![](https://geps.dev/progress/0)
 
-![](https://geps.dev/progress/0)
-
 ## LEAGUE-EXP-V4 ![](https://geps.dev/progress/0)
 
 ![](https://geps.dev/progress/0)
@@ -30,21 +28,15 @@
 
 ## LEAGUE-V4 ![](https://geps.dev/progress/0)
 
-![](https://geps.dev/progress/0)
-
 ## LOL-CHALLENGES-V1 ![](https://geps.dev/progress/0)
-
-![](https://geps.dev/progress/0)
 
 ## LOL-STATUS-V3 ![](https://geps.dev/progress/0)
 
-![](https://geps.dev/progress/0)
 |     | route | function |
 | --- | -------- | ------- |
 | ❌ | /lol/status/v3/shard-data | |
  
 ## LOL-STATUS-V4 ![](https://geps.dev/progress/0)
-
 
 |     | route | function |
 | --- | -------- | ------- |
@@ -70,13 +62,13 @@
 | ❌ | /lor/match/v1/matches/by-puuid/{puuid}/ids | |
 | ❌ | /lor/match/v1/matches/{matchId} | |
 
-## LOR-RANKED-V1
+## LOR-RANKED-V1 ![](https://geps.dev/progress/0)
 
-## LOR-STATUS-V1
+## LOR-STATUS-V1 ![](https://geps.dev/progress/0)
 
-## MATCH-V5
+## MATCH-V5 ![](https://geps.dev/progress/0)
 
-## SPECTATOR-V4
+## SPECTATOR-V4 ![](https://geps.dev/progress/0)
 
 ## SUMMONER-V4 ![](https://geps.dev/progress/66)
 
@@ -89,23 +81,23 @@
 | ❌ | /lol/summoner/v4/summoners/me | |
 | ✅ | /lol/summoner/v4/summoners/{encryptedSummonerId} | API_LEAGUE.get_summoner_by_summoner_id() |
 
-## TFT-LEAGUE-V1
+## TFT-LEAGUE-V1 ![](https://geps.dev/progress/0)
 
-## TFT-MATCH-V1
+## TFT-MATCH-V1 ![](https://geps.dev/progress/0)
 
-## TFT-STATUS-V1
+## TFT-STATUS-V1 ![](https://geps.dev/progress/0)
 
-## TFT-SUMMONER-V1
+## TFT-SUMMONER-V1 ![](https://geps.dev/progress/0)
 
-## TOURNAMENT-STUB-V5
+## TOURNAMENT-STUB-V5 ![](https://geps.dev/progress/0)
 
-## TOURNAMENT-V5
+## TOURNAMENT-V5 ![](https://geps.dev/progress/0)
 
-## VAL-CONTENT-V1
+## VAL-CONTENT-V1 ![](https://geps.dev/progress/0)
 
-## VAL-MATCH-V1
+## VAL-MATCH-V1 ![](https://geps.dev/progress/0)
 
-## VAL-RANKED-V1
+## VAL-RANKED-V1 ![](https://geps.dev/progress/0)
 
-## VAL-STATUS-V1
+## VAL-STATUS-V1 ![](https://geps.dev/progress/0)
  
