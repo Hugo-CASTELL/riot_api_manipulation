@@ -1,5 +1,4 @@
 from .enums import QueueType
-from .api_managers import API_RIOT, API_LEAGUE
 from .internal_helpers import json_format_str
 
 
@@ -9,7 +8,7 @@ class Riot_Account:
     #                                            #
     def __init__(self, puuid=None, game_name=None, tag_line=None,
                  json_builder=None,
-                 api_riot: API_RIOT = None):
+                 api_riot=None):
         """
         Object class permitting to store a Riot Account (ACCOUNT V1) and perform shortcuts api calls
 
@@ -52,7 +51,7 @@ class Summoner:
     def __init__(self, summoner_name=None, account_id=None, profile_icon_id=None, revision_date=None, id=None,
                  puuid=None, summoner_level=None,
                  json_builder=None,
-                 api_league: API_LEAGUE = None):
+                 api_league=None):
         """
         Object class permitting to store a Summoner (SUMMONER V4) and perform shortcuts api calls
 
@@ -140,7 +139,7 @@ class League_Match:
     # --- Constructor and built-in overrides --- #
     #                                            #
     def __init__(self, match_id,
-                 summoner: Summoner = None, json=None, json_timeline=None, api_league: API_LEAGUE = None):
+                 summoner: Summoner = None, json=None, json_timeline=None, api_league=None):
         """
         Object class permitting to store a League_Match (MATCH V5) and perform shortcuts api calls
 
@@ -243,7 +242,7 @@ class Champion_Rotation:
     #                                            #
     def __init__(self, max_new_player_level=None, free_champion_ids=None, free_champion_ids_for_new_players=None,
                  json_builder=None,
-                 api_league: API_LEAGUE = None):
+                 api_league=None):
         """
         Object class permitting to store a Champion_Rotation (CHAMPION V3)
 
