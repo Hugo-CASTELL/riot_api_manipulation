@@ -79,7 +79,7 @@ class Summoner:
             self.profile_icon_id = json_builder['profileIconId']
             self.revision_date = json_builder['revisionDate']
             self.id = json_builder['id']
-            self.puuid = json_builder['puuid'][0]
+            self.puuid = json_builder['puuid']
             self.summonerLevel = json_builder['summonerLevel']
 
         self.api_league = api_league

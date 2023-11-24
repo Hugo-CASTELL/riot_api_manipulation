@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "riot_api_manipulation"
-version = "0.0.63"
+version = "0.0.64"
 authors = [
   { name="Hugo CASTELL", email="hugo.castell@outlook.fr" },
 ]
