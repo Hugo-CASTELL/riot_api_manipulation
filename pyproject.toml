@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "riot_api_manipulation"
-version = "0.0.5"
+version = "0.0.6"
 authors = [
   { name="Hugo CASTELL", email="hugo.castell@outlook.fr" },
 ]
 maintainers = [
   { name="Hugo CASTELL", email="hugo.castell@outlook.fr" },
 ]
-description = "Helpers for RIOT API manipulation"
+description = "Python library for manipulating Riot Games API easily"
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
@@ -20,5 +20,7 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/Hugo-CASTELL/riot_api"
-"Bug Tracker" = "https://github.com/Hugo-CASTELL/riot_api/issues"
+"Homepage" = "https://github.com/Hugo-CASTELL/riot_api_manipulation"
+"Bug Tracker" = "https://github.com/Hugo-CASTELL/riot_api_manipulation/issues"
+"Documentation" = "https://github.com/Hugo-CASTELL/riot_api_manipulation/tree/main/docs/"
+"API's routes covering" = "https://github.com/Hugo-CASTELL/riot_api_manipulation/tree/main/docs/api_covering.md"
