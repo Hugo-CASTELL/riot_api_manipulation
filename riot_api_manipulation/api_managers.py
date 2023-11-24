@@ -179,21 +179,22 @@ class API_RIOT:
 
         # Common errors
         code = response.status_code
-        match code:
-            case 400: self.raise_exception("400 : Bad request")  # Url parameters problem (type, not passing regex...)
-            case 401: self.raise_exception("401 : Unauthorized")  # Api key may be expired
-            case 403: self.raise_exception("403 : Forbidden")  # Check request formulation (spelling, cases...)
-            case 404: self.raise_exception("404 : Data not found")  # Data was not found but request was well written
-            case 405: self.raise_exception("405 : Method not allowed")  # Your apikey can't access this method
-            case 415: self.raise_exception("415 : Unsupported media type")  # Change your media type
-            case 500: self.raise_exception("500 : Internal server error")  # Riot server error: consider retry
-            case 502: self.raise_exception("502 : Bad gateway")  # Absent or not enough connexion 
-            case 503: self.raise_exception("503 : Service unavailable")  # Riot service is down
-            case 504: self.raise_exception("504 : Gateway timeout")  # Absent or not enough connexion 
-            case 429:  # 429 : Rate limit exceeded => delay request
-                time.sleep(self.RIOT_RECOVERING_DELAY_IN_SECONDS)
-                self.get_json(url)
-                return
+
+        # Checking errors
+        if code == 400: self.raise_exception("400 : Bad request")  # Url parameters problem (type, not passing regex...)
+        if code == 401: self.raise_exception("401 : Unauthorized")  # Api key may be expired
+        if code == 403: self.raise_exception("403 : Forbidden")  # Check request formulation (spelling, cases...)
+        if code == 404: self.raise_exception("404 : Data not found")  # Data was not found but request was well written
+        if code == 405: self.raise_exception("405 : Method not allowed")  # Your apikey can't access this method
+        if code == 415: self.raise_exception("415 : Unsupported media type")  # Change your media type
+        if code == 500: self.raise_exception("500 : Internal server error")  # Riot server error: consider retry
+        if code == 502: self.raise_exception("502 : Bad gateway")  # Absent or not enough connexion
+        if code == 503: self.raise_exception("503 : Service unavailable")  # Riot service is down
+        if code == 504: self.raise_exception("504 : Gateway timeout")  # Absent or not enough connexion
+        if code == 429:  # 429 : Rate limit exceeded => delay request
+            time.sleep(self.RIOT_RECOVERING_DELAY_IN_SECONDS)
+            self.get_json(url)
+            return
 
         # If no errors then return json
         json = response.json()
