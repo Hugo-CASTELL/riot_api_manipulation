@@ -12,7 +12,7 @@ pip install -i https://test.pypi.org/simple/ riot-api-manipulation
 
 ###### Upgrade
 ```python
-pip install -U https://test.pypi.org/simple/ riot-api-manipulation 
+pip install -U -i https://test.pypi.org/simple/ riot-api-manipulation 
 ```
 
 ## 💯 Covering
