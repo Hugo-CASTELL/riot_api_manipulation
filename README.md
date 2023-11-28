@@ -61,7 +61,7 @@ print(last_match_infos)
 ###### Get summoner's last ranked games with infos and timeline
 ```python
 # Opening the api manager with a key, a region and a server
-api_league = API_LEAGUE("YOUR_API_KEY", "europe", "euw1")
+api_league = API_LEAGUE("YOUR_API_KEY", Region.EUROPE, Server.EU_NORTH)
 
 # Getting summoner's informations
 summoner = api_league.get_summoner("SUMMONER_NAME")
@@ -78,7 +78,15 @@ for game in last_games_full:
     print(game.json_timeline)
 ```
 
+## 🔭 How to contribute
+
+Do you have a suggestion or a new feature in mind ? <BR>
+Take a look to the [issue tracker](https://github.com/Hugo-CASTELL/riot_api_manipulation/issues) !
+
+Maybe do you want to contribute, solve an issue or develop new enhancements ? <BR>
+Read the [contributing guidelines](./docs/CONTRIBUTING.md), create a new branch and let's start !
+
 ## 📚 Documentation
 
-[Sources](./riot_api/) <BR>
-[Routes covering](./docs/apis_covering.md/) <BR>
+[Riot api routes covering](./docs/API_COVERING.md/) <BR>
+[Contributing guidelines](./docs/CONTRIBUTING.md.md) <BR>
