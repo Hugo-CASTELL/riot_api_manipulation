@@ -1,8 +1,8 @@
 import time
 import requests
 import threading
-from .enums import *
-from .object_classes import *
+from riot_api_manipulation.enums import *
+from riot_api_manipulation.object_classes import *
 
 
 class API_RIOT:
