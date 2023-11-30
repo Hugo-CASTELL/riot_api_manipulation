@@ -11,7 +11,8 @@ class API_RIOT:
     #                                            #
     def __init__(self, key: str, region: Region, region_server: Server, is_prod_key: bool = False,
                  custom_max_requests_capacity: int = None, custom_max_requests_capacity_per_second: int = None,
-                 custom_delay_for_recovering_all_requests: int = None):
+                 custom_delay_for_recovering_all_requests: int = None,
+                 logs_on: bool = False):
         """
         Api manager, left requests auto-tracking, handle rate limit exceptions and has functions to reach API easily
 
@@ -64,6 +65,9 @@ class API_RIOT:
         # Custom attributes #
         #                   #
         self.TOTAL_SENT_REQUESTS = 0
+        self.logs_on = logs_on
+
+        self.__print_log(f"{type(self)} ready")
 
     def __del__(self):
         # Closing on delete to avoid processes running with no father
@@ -76,6 +80,7 @@ class API_RIOT:
         """
         Closes the api manager
         """
+        self.__print_log("Closing")
         # Activating the closing event to end all the threads sons
         self.CLOSING.set()
 
@@ -87,6 +92,15 @@ class API_RIOT:
         """
         self.close()
         raise Exception(f"riot_api_manipulation: {error_text}")
+
+    def __print_log(self, log: str):
+        """
+        Print log if logs are set to on
+
+        :param log: log text
+        """
+        if self.logs_on:
+            print(f"riot_api_manipulation: {log}")
 
     def not_implemented_by_riot(self):
         self.raise_exception("Not implemented by RIOT")
@@ -135,6 +149,7 @@ class API_RIOT:
         # Critical point => number of requests by second
         if self.LEFT_REQUESTS_PER_SECOND < number_of_requests:
             # Waiting for slots
+            self.__print_log(f"Waiting for requests slots in a second")
             enough_slots = self.are_there_enough_requests_slots_in_second(number_of_requests)
             iter_counter = 0
             while enough_slots is False:
@@ -149,6 +164,7 @@ class API_RIOT:
 
         # Waiting for enough requests slots if needed
         if self.LEFT_REQUESTS < number_of_requests:
+            self.__print_log(f"Waiting for requests slots : maximum waiting {self.RIOT_RECOVERING_DELAY_IN_SECONDS}s")
             enough_slots = self.are_there_enough_requests_slots(number_of_requests)
             iter_counter = 0
             while enough_slots is False:
@@ -204,6 +220,7 @@ class API_RIOT:
         elif code == 504:
             self.raise_exception("504 : Gateway timeout -> Absent or not enough internet connection")
         elif code == 429:  # 429 : Rate limit exceeded => delay request
+            self.__print_log(f"Rate limit was exceeded, retry in {self.RIOT_RECOVERING_DELAY_IN_SECONDS}s")
             time.sleep(self.RIOT_RECOVERING_DELAY_IN_SECONDS)
             self.get_json(url)
             return
