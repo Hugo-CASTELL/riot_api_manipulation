@@ -6,7 +6,7 @@ from riot_api_manipulation.urls import URL_MANAGER
 from riot_api_manipulation.object_classes import *
 
 
-class API_RIOT:
+class API_MANAGER:
     #                                            #
     # --- Constructor and built-in overrides --- #
     #                                            #
@@ -231,6 +231,8 @@ class API_RIOT:
         json = response.json()
         return json
 
+
+class API_RIOT(API_MANAGER):
     #                         #
     # --- Private helpers --- #
     #                         #
@@ -292,7 +294,6 @@ class API_RIOT:
 
 
 class API_LEAGUE(API_RIOT):
-
     #                         #
     # --- Private helpers --- #
     #                         #
