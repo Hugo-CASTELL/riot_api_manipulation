@@ -2,6 +2,7 @@ import time
 import requests
 import threading
 from riot_api_manipulation.enums import *
+from riot_api_manipulation.urls import URL_MANAGER
 from riot_api_manipulation.object_classes import *
 
 
@@ -32,6 +33,7 @@ class API_RIOT:
         self.REGION_SERVER = region_server.value if type(region_server) is Server else region_server
         self.URL_REGION = f"https://{self.REGION}.api.riotgames.com"
         self.URL_REGION_SERVER = f"https://{self.REGION_SERVER}.api.riotgames.com"
+        self.URLS = URL_MANAGER(self)
 
         #                              #
         # ApiKey capacity manipulation #
@@ -251,8 +253,7 @@ class API_RIOT:
         :param puuid: consistent id across regions
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.URL_REGION}/riot/account/v1/accounts/by-puuid/{puuid}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.RIOT.ACCOUNT_V1.by_puuid(puuid)
 
         return self.__process_riot_account(url, raw_json)
 
@@ -265,8 +266,7 @@ class API_RIOT:
         :param tag_line: playerName#01234 without #
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.URL_REGION}/riot/account/v1/accounts/by-riot-id/{in_game_name}/{tag_line}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.RIOT.ACCOUNT_V1.by_ingamename_and_tagline(in_game_name, tag_line)
 
         return self.__process_riot_account(url, raw_json)
 
@@ -284,8 +284,7 @@ class API_RIOT:
             self.not_implemented_by_riot()
 
         # Getting data
-        url = (f"{self.URL_REGION}/riot/account/v1/accounts/by-game/{game_abbreviating}/by-puuid/{puuid}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.RIOT.ACCOUNT_V1.by_game_and_puuid(game_abbreviating, puuid)
         json = self.get_json(url)
 
         # Exploiting data
@@ -316,8 +315,7 @@ class API_LEAGUE(API_RIOT):
         :param summoner_name: in-game summoner name
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.URL_REGION_SERVER}/lol/summoner/v4/summoners/by-name/{summoner_name}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.SUMMONER_V4.by_summoner_name(summoner_name)
 
         return self.__process_summoner(url, raw_json)
 
@@ -329,8 +327,7 @@ class API_LEAGUE(API_RIOT):
         :param account_id: riot account id
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.URL_REGION_SERVER}/lol/summoner/v4/summoners/by-account/{account_id}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.SUMMONER_V4.by_account_id(account_id)
 
         return self.__process_summoner(url, raw_json)
 
@@ -342,8 +339,7 @@ class API_LEAGUE(API_RIOT):
         :param puuid: consistent id across regions
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.URL_REGION_SERVER}/lol/summoner/v4/summoners/by-puuid/{puuid}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.SUMMONER_V4.by_puuid(puuid)
 
         return self.__process_summoner(url, raw_json)
 
@@ -355,8 +351,7 @@ class API_LEAGUE(API_RIOT):
         :param summoner_id: summoner id in region
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.URL_REGION_SERVER}/lol/summoner/v4/summoners/{summoner_id}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.SUMMONER_V4.by_summoner_id(summoner_id)
 
         return self.__process_summoner(url, raw_json)
 
@@ -384,11 +379,7 @@ class API_LEAGUE(API_RIOT):
         jsons = []
         for count in count_divided:
             # Getting json and storing it
-            url = (f"{self.URL_REGION}/lol/match/v5/matches/by-puuid/{puuid}/ids?"
-                   f"start={start_number}"
-                   f"&count={count}"
-                   f"{f'&type={queue.value}' if queue is not None else ''}"
-                   f"&api_key={self.KEY}")
+            url = self.URLS.LOL.MATCH_V5.match_ids(puuid, start_number, count, queue)
             json = self.get_json(url)
             jsons.append(json)
 
@@ -414,8 +405,7 @@ class API_LEAGUE(API_RIOT):
         :param raw_json: by default as False, permits to return raw json if set to True
         """
         # Getting data
-        url = (f"{self.URL_REGION}/lol/match/v5/matches/{match_id}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.MATCH_V5.match_infos(match_id)
         json = self.get_json(url)
 
         # Exploiting data
@@ -430,8 +420,7 @@ class API_LEAGUE(API_RIOT):
         :param raw_json: by default as False, permits to return raw json if set to True
         """
         # Getting data
-        url = (f"{self.URL_REGION}/lol/match/v5/matches/{match_id}/timeline?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.MATCH_V5.match_timeline(match_id)
         json = self.get_json(url)
 
         # Exploiting data
@@ -446,8 +435,7 @@ class API_LEAGUE(API_RIOT):
         :param raw_json: by default as False, permits to return raw json if set to True
         """
         # Getting data
-        url = (f"{self.URL_REGION_SERVER}/lol/platform/v3/champion-rotations?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.CHAMPION_V3.champion_rotation()
         json = self.get_json(url)
 
         # Exploiting data
@@ -462,8 +450,7 @@ class API_VALORANT(API_RIOT):
     def list_match_ids(self, puuid: str,
                        raw_json: bool = False):
         # Getting data
-        url = (f"{self.URL_REGION}/val/match/v1/matchlists/by-puuid/{puuid}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.VAL.MATCH_V1.match_ids(puuid)
         json = self.get_json(url)
 
         # Exploiting data
@@ -471,8 +458,7 @@ class API_VALORANT(API_RIOT):
 
     def get_match_infos(self, match_id: str):
         # Getting data
-        url = (f"{self.URL_REGION}/val/match/v1/matches/{match_id}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.VAL.MATCH_V1.match_infos(match_id)
         json = self.get_json(url)
 
         # Exploiting data
