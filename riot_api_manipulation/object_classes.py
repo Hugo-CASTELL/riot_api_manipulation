@@ -103,7 +103,7 @@ class Summoner:
         :param load_infos: by default as False, permits to load game infos for each match if set to True and raw_json is False
         :param load_timelines: by default as False, permits to load timeline for each match if set to True and raw_json is False
         :param raw_json: by default as False, permits to return raw json if set to True
-        :return:
+        :return: list[League_Match] or string if raw_json
         """
         if self.api_league is None:
             raise Exception(f"Summoner: {self.summoner_name} has no internal api league specified.")
@@ -144,6 +144,7 @@ class Summoner:
 
         :param queue: by default as None to ensure loading all matches, queue is a filter
         :param raw_json: by default as False, permits to return raw json if set to True
+        :return: League_Match or string if raw_json
         """
         return self.get_match_history(nb_matches=1, start_number=0, queue=queue, raw_json=raw_json)[0]
 
