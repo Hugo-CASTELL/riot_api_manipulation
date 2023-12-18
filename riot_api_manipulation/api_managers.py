@@ -13,7 +13,7 @@ class API_MANAGER:
     def __init__(self, key: str, region: Region, region_server: Server, is_prod_key: bool = False,
                  custom_max_requests_capacity: int = None, custom_max_requests_capacity_per_second: int = None,
                  custom_delay_for_recovering_all_requests: int = None,
-                 logs_on: bool = False):
+                 logs_on: bool = True):
         """
         Api manager, left requests auto-tracking, handle rate limit exceptions and has functions to reach API easily
 
@@ -82,9 +82,10 @@ class API_MANAGER:
         """
         Closes the api manager
         """
-        self.__print_log("Closing")
-        # Activating the closing event to end all the threads sons
-        self.CLOSING.set()
+        if self.CLOSING.is_set() is False:
+            self.__print_log("Closing")
+            # Activating the closing event to end all the threads sons
+            self.CLOSING.set()
 
     def raise_exception(self, error_text: str):
         """
@@ -206,7 +207,7 @@ class API_MANAGER:
         elif code == 401:
             self.raise_exception("401 : Unauthorized -> Api key may be expired")
         elif code == 403:
-            self.raise_exception("403 : Forbidden -> Check request formulation (spelling, cases...)")
+            self.raise_exception("403 : Forbidden -> Check request formulation (spelling, cases...) OR the server is down : https://developer.riotgames.com/api-status/")
         elif code == 404:
             self.raise_exception("404 : Data not found -> Data was not found but request was well written")
         elif code == 405:
@@ -293,7 +294,7 @@ class API_RIOT(API_MANAGER):
         return json if raw_json is True else json['activeShard']
 
 
-class API_LEAGUE(API_RIOT):
+class API_LOL(API_RIOT):
     #                         #
     # --- Private helpers --- #
     #                         #
@@ -360,7 +361,7 @@ class API_LEAGUE(API_RIOT):
     def list_match_only_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None,
                             summoner_associated=None, raw_json: bool = False):
         """
-        Returns a list of League_Match where only id is loaded
+        Returns a list of Lol_Match where only id is loaded
 
         :param puuid: consistent id across regions of player calling
         :param nb_matches: total of matches loaded
@@ -394,13 +395,13 @@ class API_LEAGUE(API_RIOT):
             league_matches = []
             for json in jsons:
                 for match_id in json:
-                    league_matches.append(League_Match(match_id, summoner=summoner_associated, api_league=self))
+                    league_matches.append(Lol_Match(match_id, summoner=summoner_associated, api_league=self))
             return league_matches
 
     def get_match_infos(self, match_id: str,
                         raw_json: bool = False):
         """
-        Returns League_Match loaded with game's infos
+        Returns Lol_Match loaded with game's infos
 
         :param match_id: match id
         :param raw_json: by default as False, permits to return raw json if set to True
@@ -410,12 +411,12 @@ class API_LEAGUE(API_RIOT):
         json = self.get_json(url)
 
         # Exploiting data
-        return json if raw_json is True else League_Match(match_id, json=json, api_league=self)
+        return json if raw_json is True else Lol_Match(match_id, json=json, api_league=self)
 
     def get_match_timeline(self, match_id: str,
                            raw_json: bool = False):
         """
-        Returns League_Match loaded with game's timeline
+        Returns Lol_Match loaded with game's timeline
 
         :param match_id: match id
         :param raw_json: by default as False, permits to return raw json if set to True
@@ -425,7 +426,7 @@ class API_LEAGUE(API_RIOT):
         json = self.get_json(url)
 
         # Exploiting data
-        return json if raw_json is True else League_Match(match_id, json_timeline=json, api_league=self)
+        return json if raw_json is True else Lol_Match(match_id, json_timeline=json, api_league=self)
 
     # CHAMPION V3
     def get_champions_rotation(self,
