@@ -1,4 +1,4 @@
-# APIs' covering [Work in progress]
+# APIs' covering [Work in progress] 
 
 ## ACCOUNT-V1 ![](https://geps.dev/progress/75)
 
@@ -99,4 +99,5 @@
 ## VAL-RANKED-V1 ![](https://geps.dev/progress/0)
 
 ## VAL-STATUS-V1 ![](https://geps.dev/progress/0)
- 
+
+## EVERYTHING IS NOT IMPLEMENTED YET !

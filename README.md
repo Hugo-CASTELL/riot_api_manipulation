@@ -22,7 +22,7 @@ pip install --upgrade --index-url https://test.pypi.org/simple/ riot-api-manipul
 ![](https://geps.dev/progress/0) Teamfight Tactics   <BR>
 ![](https://geps.dev/progress/0) League of Runeterra <BR>
 
-All routes listed here : [click me to discover what is implemented !](./docs/API_COVERING.md)
+All routes listed here : [click me to discover what is implemented !](./docs/ROUTE_COVERING.md)
 
 ## 💻 Getting started
 
@@ -90,5 +90,6 @@ Read the [contributing guidelines](./docs/CONTRIBUTING.md), create a new branch 
 
 ## 📚 Documentation
 
-[Riot api routes covering](./docs/API_COVERING.md) <BR>
+[Usage examples](./docs/EXAMPLES.md) <BR>
+[Riot api routes covering](./docs/ROUTE_COVERING.md) <BR>
 [Contributing guidelines](./docs/CONTRIBUTING.md) <BR>
