@@ -31,7 +31,7 @@ All routes listed here : [click me to discover what is implemented !](./docs/API
 riot_api_manipulation uses parallel threads to track left requests and the function API.close() terminates these threads.
 Make sure to add it at the end of your script or at the closing of your application.
 ```python
-api_lol = API_LOL("YOUR_API_KEY", "europe", "euw1")
+api_lol = API_LOL("YOUR_API_KEY", Region.EUROPE, Server.EU_WEST)
 # Exploiting api [...]
 api_lol.close()
 ```
