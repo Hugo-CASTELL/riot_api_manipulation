@@ -1,7 +1,7 @@
 import pytest
 import responses
 
-from riot_api_manipulation import Region, Server, URL_MANAGER, API_LEAGUE, Summoner, League_Match
+from riot_api_manipulation import Region, Server, URL_MANAGER, API_LOL, Summoner, Lol_Match
 
 
 @pytest.fixture()
@@ -85,7 +85,7 @@ def summoner_keys():
 
 @pytest.fixture()
 def basic_api_league(setup):
-    return API_LEAGUE(setup['key'], setup['region'], setup['server'])
+    return API_LOL(setup['key'], setup['region'], setup['server'], logs_on=False)
 
 
 @pytest.fixture()
@@ -129,8 +129,8 @@ def test_match_ids(basic_api_league, summoner, url_manager, summoner_keys, keys)
 
     api = basic_api_league
     found_summoner: Summoner = summoner
-    match_ids: list[League_Match] = api.list_match_only_ids(summoner.puuid, count, start,
-                                                            summoner_associated=found_summoner)
+    match_ids: list[Lol_Match] = api.list_match_only_ids(summoner.puuid, count, start,
+                                                         summoner_associated=found_summoner)
     api.close()
     assert [match.match_id for match in match_ids] == keys['match_ids'][start:count]
     assert len(summoner.match_history) == 0
@@ -145,7 +145,7 @@ def test_match_infos(basic_api_league, summoner, url_manager, summoner_keys, key
     )
 
     api = basic_api_league
-    match: League_Match = api.get_match_infos(keys['match_id_example'])
+    match: Lol_Match = api.get_match_infos(keys['match_id_example'])
     api.close()
     assert match.match_id == keys['match_id_example']
     assert match.json == keys['json_example']
@@ -160,7 +160,7 @@ def test_match_infos(basic_api_league, summoner, url_manager, summoner_keys, key
     )
 
     api = basic_api_league
-    match: League_Match = api.get_match_timeline(keys['match_id_example'])
+    match: Lol_Match = api.get_match_timeline(keys['match_id_example'])
     api.close()
     assert match.match_id == keys['match_id_example']
     assert match.json_timeline == keys['timeline_example']

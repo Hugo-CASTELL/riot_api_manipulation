@@ -1,7 +1,7 @@
 import pytest
 import responses
 
-from riot_api_manipulation import Region, Server, URL_MANAGER, API_LEAGUE, Summoner
+from riot_api_manipulation import Region, Server, URL_MANAGER, API_LOL, Summoner
 
 
 @pytest.fixture()
@@ -33,7 +33,7 @@ def keys():
 
 @pytest.fixture()
 def basic_api_league(setup):
-    return API_LEAGUE(setup['key'], setup['region'], setup['server'])
+    return API_LOL(setup['key'], setup['region'], setup['server'], logs_on=False)
 
 
 @pytest.fixture()
