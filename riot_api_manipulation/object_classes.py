@@ -1,5 +1,5 @@
-from .enums import QueueType
-from .internal_helpers import json_format_str
+from riot_api_manipulation.enums import QueueType
+from riot_api_manipulation.internal_helpers import json_format_str
 
 
 class Riot_Account:
@@ -72,6 +72,7 @@ class Summoner:
         self.id = id
         self.puuid = puuid
         self.summonerLevel = summoner_level
+        self.match_history = []
 
         if json_builder is not None:
             self.summoner_name = json_builder['name']
@@ -102,46 +103,60 @@ class Summoner:
         :param load_infos: by default as False, permits to load game infos for each match if set to True and raw_json is False
         :param load_timelines: by default as False, permits to load timeline for each match if set to True and raw_json is False
         :param raw_json: by default as False, permits to return raw json if set to True
-        :return:
+        :return: list[Lol_Match] or string if raw_json
         """
         if self.api_league is None:
             raise Exception(f"Summoner: {self.summoner_name} has no internal api league specified.")
 
+        # Getting data
         matches = self.api_league.list_match_only_ids(self.puuid, nb_matches, start_number, queue,
                                                       summoner_associated=self, raw_json=raw_json)
 
-        load_something: bool = raw_json is False and (load_infos is True or load_timelines is True)
+        if raw_json is False:
+            # Fill match history with None when there is no space
+            if len(self.match_history) < start_number+nb_matches:
+                for i in range(len(self.match_history), start_number+nb_matches):
+                    self.match_history.append(None)
 
-        if load_something is True:
-            for match in matches:
-                if load_infos is True and load_timelines is True:
-                    match.get_full_infos()
-                elif load_infos is True:
-                    match.get_infos()
-                elif load_timelines is True:
-                    match.get_timeline()
+            # Storing the match in the summoner history
+            for i in range(start_number, start_number+nb_matches):
+                if self.match_history[i] is None:
+                    self.match_history[i] = matches[i-start_number]
+
+            # Loading infos when necessary
+            load_something: bool = load_infos is True or load_timelines is True
+
+            if load_something is True:
+                for match in self.match_history[start_number:start_number+nb_matches]:
+                    if load_infos is True and load_timelines is True:
+                        match.get_full_infos()
+                    elif load_infos is True:
+                        match.get_infos()
+                    elif load_timelines is True:
+                        match.get_timeline()
 
         return matches
 
     def get_last_game(self, queue: QueueType = None,
                       raw_json: bool = False):
         """
-        Returns summoner's last game (id only or League_Match)
+        Returns summoner's last game (id only or Lol_Match)
 
         :param queue: by default as None to ensure loading all matches, queue is a filter
         :param raw_json: by default as False, permits to return raw json if set to True
+        :return: Lol_Match or string if raw_json
         """
         return self.get_match_history(nb_matches=1, start_number=0, queue=queue, raw_json=raw_json)[0]
 
 
-class League_Match:
+class Lol_Match:
     #                                            #
     # --- Constructor and built-in overrides --- #
     #                                            #
     def __init__(self, match_id,
                  summoner: Summoner = None, json=None, json_timeline=None, api_league=None):
         """
-        Object class permitting to store a League_Match (MATCH V5) and perform shortcuts api calls
+        Object class permitting to store a Lol_Match (MATCH V5) and perform shortcuts api calls
 
         :param match_id: match id
         :param summoner: if there is one, the summoner where match was found in history
@@ -166,7 +181,7 @@ class League_Match:
 
     def __getitem__(self, item):
         if self.json is None:
-            raise Exception(f"League_Match: {self.match_id} infos (json) is not loaded.")
+            raise Exception(f"Lol_Match: {self.match_id} infos (json) is not loaded.")
 
         return self.json['metadata'][item]
 
@@ -176,46 +191,48 @@ class League_Match:
     def get_infos(self,
                   raw_json: bool = False):
         """
-        Loads game's infos in League_Match and can return or self to perform shortcuts or raw json
+        Loads game's infos in Lol_Match and can return or self to perform shortcuts or raw json
 
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        if self.api_league is None:
-            raise Exception(f"League_Match: {self.match_id} has no internal api league specified.")
+        if self.json is None:
+            if self.api_league is None:
+                raise Exception(f"Lol_Match: {self.match_id} has no internal api league specified.")
 
-        # Getting json
-        json = self.api_league.get_match_infos(self.match_id, raw_json=True)
+            # Getting json
+            json = self.api_league.get_match_infos(self.match_id, raw_json=True)
 
-        # Processing for object
-        self.json = json
-        self.metadata = json['metadata']
-        self.infos = json['info']
+            # Processing for object
+            self.json = json
+            self.metadata = json['metadata']
+            self.infos = json['info']
 
         # Return statement
-        return json if raw_json else self
+        return self.json if raw_json else self
 
     def get_timeline(self,
                      raw_json: bool = False):
         """
-        Loads game's timeline in League_Match and can return or self to perform shortcuts or raw json
+        Loads game's timeline in Lol_Match and can return or self to perform shortcuts or raw json
 
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        if self.api_league is None:
-            raise Exception(f"League_Match: {self.match_id} has no internal api league specified.")
+        if self.json_timeline is None:
+            if self.api_league is None:
+                raise Exception(f"Lol_Match: {self.match_id} has no internal api league specified.")
 
-        # Getting json
-        json_timeline = self.api_league.get_match_timeline(self.match_id, raw_json=True)
+            # Getting json
+            json_timeline = self.api_league.get_match_timeline(self.match_id, raw_json=True)
 
-        # Processing for object
-        self.json_timeline = json_timeline
+            # Processing for object
+            self.json_timeline = json_timeline
 
         # Return statement
-        return json_timeline if raw_json else self
+        return self.json_timeline if raw_json else self
 
     def get_full_infos(self):
         """
-        Loads game's infos and timeline in the League_Match
+        Loads game's infos and timeline in the Lol_Match
         """
         self.get_infos()
         self.get_timeline()
@@ -224,10 +241,10 @@ class League_Match:
     def get_infos_of_summoner(self,
                               puuid: str = None):
         """
-        Returns summoner (by default self.summoner or custom puuid) game's infos found in infos json in the League_Match
+        Returns summoner (by default self.summoner or custom puuid) game's infos found in infos json in the Lol_Match
         """
         if self.summoner is None:
-            raise Exception(f"League_Match: {self.match_id} has no internal summoner specified.")
+            raise Exception(f"Lol_Match: {self.match_id} has no internal summoner specified.")
 
         if self.json is None:
             self.get_infos()

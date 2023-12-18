@@ -1,18 +1,21 @@
 import time
 import requests
 import threading
-from .enums import *
-from .object_classes import *
+from riot_api_manipulation.enums import *
+from riot_api_manipulation.urls import URL_MANAGER
+from riot_api_manipulation.object_classes import *
 
 
-class API_RIOT:
+class API_MANAGER:
     #                                            #
     # --- Constructor and built-in overrides --- #
     #                                            #
-    def __init__(self, key: str, region: Region | str, region_server: Server | str, is_prod_key: bool = False,
+    def __init__(self, key: str, region: Region, region_server: Server, is_prod_key: bool = False,
                  custom_max_requests_capacity: int = None, custom_max_requests_capacity_per_second: int = None,
-                 custom_delay_for_recovering_all_requests: int = None):
+                 custom_delay_for_recovering_all_requests: int = None,
+                 logs_on: bool = True):
         """
+        Api manager, left requests auto-tracking, handle rate limit exceptions and has functions to reach API easily
 
         :param key: valid api key
         :param region: region to perform calls
@@ -28,8 +31,9 @@ class API_RIOT:
         self.KEY = key
         self.REGION = region.value if type(region) is Region else region
         self.REGION_SERVER = region_server.value if type(region_server) is Server else region_server
-        self.RIOT_URL_REGION = f"https://{region}.api.riotgames.com"
-        self.RIOT_URL_REGION_SERVER = f"https://{region_server}.api.riotgames.com"
+        self.URL_REGION = f"https://{self.REGION}.api.riotgames.com"
+        self.URL_REGION_SERVER = f"https://{self.REGION_SERVER}.api.riotgames.com"
+        self.URLS = URL_MANAGER(self)
 
         #                              #
         # ApiKey capacity manipulation #
@@ -63,6 +67,9 @@ class API_RIOT:
         # Custom attributes #
         #                   #
         self.TOTAL_SENT_REQUESTS = 0
+        self.logs_on = logs_on
+
+        self.__print_log(f"{type(self)} ready")
 
     def __del__(self):
         # Closing on delete to avoid processes running with no father
@@ -75,9 +82,11 @@ class API_RIOT:
         """
         Closes the api manager
         """
-        # Activating the closing event to end all the threads sons
-        self.CLOSING.set()
-        
+        if self.CLOSING.is_set() is False:
+            self.__print_log("Closing")
+            # Activating the closing event to end all the threads sons
+            self.CLOSING.set()
+
     def raise_exception(self, error_text: str):
         """
         Internal raise exception to ensure closing properly
@@ -85,7 +94,16 @@ class API_RIOT:
         :param error_text: exception text
         """
         self.close()
-        raise Exception(error_text)
+        raise Exception(f"riot_api_manipulation: {error_text}")
+
+    def __print_log(self, log: str):
+        """
+        Print log if logs are set to on
+
+        :param log: log text
+        """
+        if self.logs_on:
+            print(f"riot_api_manipulation: {log}")
 
     def not_implemented_by_riot(self):
         self.raise_exception("Not implemented by RIOT")
@@ -134,6 +152,7 @@ class API_RIOT:
         # Critical point => number of requests by second
         if self.LEFT_REQUESTS_PER_SECOND < number_of_requests:
             # Waiting for slots
+            self.__print_log(f"Waiting for requests slots in a second")
             enough_slots = self.are_there_enough_requests_slots_in_second(number_of_requests)
             iter_counter = 0
             while enough_slots is False:
@@ -143,10 +162,12 @@ class API_RIOT:
 
                 # Max iteration is two seconds => it means there are too much requests for apiKey capacity
                 if iter_counter == 2 and enough_slots is False:
-                    self.raise_exception("Impossible to run this amount of requests in a second with your apiKey capacity")
+                    self.raise_exception(
+                        "Impossible to run this amount of requests in a second with your apiKey capacity")
 
         # Waiting for enough requests slots if needed
         if self.LEFT_REQUESTS < number_of_requests:
+            self.__print_log(f"Waiting for requests slots : maximum waiting {self.RIOT_RECOVERING_DELAY_IN_SECONDS}s")
             enough_slots = self.are_there_enough_requests_slots(number_of_requests)
             iter_counter = 0
             while enough_slots is False:
@@ -181,17 +202,28 @@ class API_RIOT:
         code = response.status_code
 
         # Checking errors
-        if code == 400: self.raise_exception("400 : Bad request")  # Url parameters problem (type, not passing regex...)
-        if code == 401: self.raise_exception("401 : Unauthorized")  # Api key may be expired
-        if code == 403: self.raise_exception("403 : Forbidden")  # Check request formulation (spelling, cases...)
-        if code == 404: self.raise_exception("404 : Data not found")  # Data was not found but request was well written
-        if code == 405: self.raise_exception("405 : Method not allowed")  # Your apikey can't access this method
-        if code == 415: self.raise_exception("415 : Unsupported media type")  # Change your media type
-        if code == 500: self.raise_exception("500 : Internal server error")  # Riot server error: consider retry
-        if code == 502: self.raise_exception("502 : Bad gateway")  # Absent or not enough connexion
-        if code == 503: self.raise_exception("503 : Service unavailable")  # Riot service is down
-        if code == 504: self.raise_exception("504 : Gateway timeout")  # Absent or not enough connexion
-        if code == 429:  # 429 : Rate limit exceeded => delay request
+        if code == 400:
+            self.raise_exception("400 : Bad request -> Url parameters problem (type, not passing regex...)")
+        elif code == 401:
+            self.raise_exception("401 : Unauthorized -> Api key may be expired")
+        elif code == 403:
+            self.raise_exception("403 : Forbidden -> Check request formulation (spelling, cases...) OR the server is down : https://developer.riotgames.com/api-status/")
+        elif code == 404:
+            self.raise_exception("404 : Data not found -> Data was not found but request was well written")
+        elif code == 405:
+            self.raise_exception("405 : Method not allowed -> Your api key doesn't give you access to this method")
+        elif code == 415:
+            self.raise_exception("415 : Unsupported media type -> Change your media type")
+        elif code == 500:
+            self.raise_exception("500 : Internal server error -> Riot server error, consider retry")
+        elif code == 502:
+            self.raise_exception("502 : Bad gateway -> Absent or not enough internet connection")
+        elif code == 503:
+            self.raise_exception("503 : Service unavailable -> Riot service is down, retry later")
+        elif code == 504:
+            self.raise_exception("504 : Gateway timeout -> Absent or not enough internet connection")
+        elif code == 429:  # 429 : Rate limit exceeded => delay request
+            self.__print_log(f"Rate limit was exceeded, retry in {self.RIOT_RECOVERING_DELAY_IN_SECONDS}s")
             time.sleep(self.RIOT_RECOVERING_DELAY_IN_SECONDS)
             self.get_json(url)
             return
@@ -200,6 +232,8 @@ class API_RIOT:
         json = response.json()
         return json
 
+
+class API_RIOT(API_MANAGER):
     #                         #
     # --- Private helpers --- #
     #                         #
@@ -222,8 +256,7 @@ class API_RIOT:
         :param puuid: consistent id across regions
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.RIOT_URL_REGION}/riot/account/v1/accounts/by-puuid/{puuid}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.RIOT.ACCOUNT_V1.by_puuid(puuid)
 
         return self.__process_riot_account(url, raw_json)
 
@@ -236,8 +269,7 @@ class API_RIOT:
         :param tag_line: playerName#01234 without #
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.RIOT_URL_REGION}/riot/account/v1/accounts/by-riot-id/{in_game_name}/{tag_line}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.RIOT.ACCOUNT_V1.by_ingamename_and_tagline(in_game_name, tag_line)
 
         return self.__process_riot_account(url, raw_json)
 
@@ -255,16 +287,14 @@ class API_RIOT:
             self.not_implemented_by_riot()
 
         # Getting data
-        url = (f"{self.RIOT_URL_REGION}/riot/account/v1/accounts/by-game/{game_abbreviating}/by-puuid/{puuid}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.RIOT.ACCOUNT_V1.by_game_and_puuid(game_abbreviating, puuid)
         json = self.get_json(url)
 
         # Exploiting data
         return json if raw_json is True else json['activeShard']
 
 
-class API_LEAGUE(API_RIOT):
-
+class API_LOL(API_RIOT):
     #                         #
     # --- Private helpers --- #
     #                         #
@@ -287,8 +317,7 @@ class API_LEAGUE(API_RIOT):
         :param summoner_name: in-game summoner name
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/by-name/{summoner_name}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.SUMMONER_V4.by_summoner_name(summoner_name)
 
         return self.__process_summoner(url, raw_json)
 
@@ -300,8 +329,7 @@ class API_LEAGUE(API_RIOT):
         :param account_id: riot account id
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/by-account/{account_id}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.SUMMONER_V4.by_account_id(account_id)
 
         return self.__process_summoner(url, raw_json)
 
@@ -313,8 +341,7 @@ class API_LEAGUE(API_RIOT):
         :param puuid: consistent id across regions
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/by-puuid/{puuid}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.SUMMONER_V4.by_puuid(puuid)
 
         return self.__process_summoner(url, raw_json)
 
@@ -326,8 +353,7 @@ class API_LEAGUE(API_RIOT):
         :param summoner_id: summoner id in region
         :param raw_json: by default as False, permits to return raw json if set to True
         """
-        url = (f"{self.RIOT_URL_REGION_SERVER}/lol/summoner/v4/summoners/{summoner_id}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.SUMMONER_V4.by_summoner_id(summoner_id)
 
         return self.__process_summoner(url, raw_json)
 
@@ -335,7 +361,7 @@ class API_LEAGUE(API_RIOT):
     def list_match_only_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None,
                             summoner_associated=None, raw_json: bool = False):
         """
-        Returns a list of League_Match where only id is loaded
+        Returns a list of Lol_Match where only id is loaded
 
         :param puuid: consistent id across regions of player calling
         :param nb_matches: total of matches loaded
@@ -344,48 +370,63 @@ class API_LEAGUE(API_RIOT):
         :param summoner_associated: object class Summoner associated if there is one
         :param raw_json: by default as False, permits to return raw json if set to True
         """
+        # Static
+        max_ids_per_request = 100
+
+        # Processing for max count
+        count_divided = [max_ids_per_request for _ in range(nb_matches // max_ids_per_request)]
+        count_divided.append(nb_matches % max_ids_per_request)
+
         # Getting data
-        url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/by-puuid/{puuid}/ids?"
-               f"start={start_number}"
-               f"&count={nb_matches}"
-               f"{f'&type={queue.value}' if queue is not None else ''}"
-               f"&api_key={self.KEY}")
-        json = self.get_json(url)
+        jsons = []
+        for count in count_divided:
+            # Getting json and storing it
+            url = self.URLS.LOL.MATCH_V5.match_ids(puuid, start_number, count, queue)
+            json = self.get_json(url)
+            jsons.append(json)
+
+            # Increasing start number
+            start_number += count
 
         # Exploiting data
-        return json if raw_json is True else [League_Match(match_id, summoner=summoner_associated, api_league=self) for match_id in json]
+        if raw_json:
+            return jsons
+        else:
+            league_matches = []
+            for json in jsons:
+                for match_id in json:
+                    league_matches.append(Lol_Match(match_id, summoner=summoner_associated, api_league=self))
+            return league_matches
 
     def get_match_infos(self, match_id: str,
                         raw_json: bool = False):
         """
-        Returns League_Match loaded with game's infos
+        Returns Lol_Match loaded with game's infos
 
         :param match_id: match id
         :param raw_json: by default as False, permits to return raw json if set to True
         """
         # Getting data
-        url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/{match_id}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.MATCH_V5.match_infos(match_id)
         json = self.get_json(url)
 
         # Exploiting data
-        return json if raw_json is True else League_Match(match_id, json=json, api_league=self)
+        return json if raw_json is True else Lol_Match(match_id, json=json, api_league=self)
 
     def get_match_timeline(self, match_id: str,
                            raw_json: bool = False):
         """
-        Returns League_Match loaded with game's timeline
+        Returns Lol_Match loaded with game's timeline
 
         :param match_id: match id
         :param raw_json: by default as False, permits to return raw json if set to True
         """
         # Getting data
-        url = (f"{self.RIOT_URL_REGION}/lol/match/v5/matches/{match_id}/timeline?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.MATCH_V5.match_timeline(match_id)
         json = self.get_json(url)
 
         # Exploiting data
-        return json if raw_json is True else League_Match(match_id, json_timeline=json, api_league=self)
+        return json if raw_json is True else Lol_Match(match_id, json_timeline=json, api_league=self)
 
     # CHAMPION V3
     def get_champions_rotation(self,
@@ -396,8 +437,7 @@ class API_LEAGUE(API_RIOT):
         :param raw_json: by default as False, permits to return raw json if set to True
         """
         # Getting data
-        url = (f"{self.RIOT_URL_REGION_SERVER}/lol/platform/v3/champion-rotations?"
-               f"api_key={self.KEY}")
+        url = self.URLS.LOL.CHAMPION_V3.champion_rotation()
         json = self.get_json(url)
 
         # Exploiting data
@@ -412,8 +452,7 @@ class API_VALORANT(API_RIOT):
     def list_match_ids(self, puuid: str,
                        raw_json: bool = False):
         # Getting data
-        url = (f"{self.RIOT_URL_REGION}/val/match/v1/matchlists/by-puuid/{puuid}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.VAL.MATCH_V1.match_ids(puuid)
         json = self.get_json(url)
 
         # Exploiting data
@@ -421,8 +460,7 @@ class API_VALORANT(API_RIOT):
 
     def get_match_infos(self, match_id: str):
         # Getting data
-        url = (f"{self.RIOT_URL_REGION}/val/match/v1/matches/{match_id}?"
-               f"api_key={self.KEY}")
+        url = self.URLS.VAL.MATCH_V1.match_infos(match_id)
         json = self.get_json(url)
 
         # Exploiting data
