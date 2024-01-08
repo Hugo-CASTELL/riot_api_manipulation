@@ -321,6 +321,21 @@ class API_LOL(API_RIOT):
 
         return self.__process_summoner(url, raw_json)
 
+    def get_summoner_by_name_and_tagline(self, summoner_name: str, tagline: str,
+                                         raw_json: bool = False):
+        """
+        Returns summoner find by name and tagline
+
+        :param summoner_name: in-game summoner name
+        :param tagline: summoner tag line (without #)
+        :param raw_json: by default as False, permits to return raw json if set to True
+        """
+        riot_account = self.get_riot_account_by_ingamename_and_tagline(summoner_name, tagline)
+
+        url = self.URLS.LOL.SUMMONER_V4.by_summoner_puuid(riot_account.puuid)
+
+        return self.__process_summoner(url, raw_json)
+
     def get_summoner_by_account_id(self, account_id: str,
                                    raw_json: bool = False):
         """

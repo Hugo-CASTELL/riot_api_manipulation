@@ -243,8 +243,8 @@ class Lol_Match:
         """
         Returns summoner (by default self.summoner or custom puuid) game's infos found in infos json in the Lol_Match
         """
-        if self.summoner is None:
-            raise Exception(f"Lol_Match: {self.match_id} has no internal summoner specified.")
+        if self.summoner is None and puuid is None:
+            raise Exception(f"Lol_Match: {self.match_id} has no internal summoner specified and puuid parameter is None.")
 
         if self.json is None:
             self.get_infos()
