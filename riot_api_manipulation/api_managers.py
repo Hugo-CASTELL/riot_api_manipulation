@@ -1,3 +1,4 @@
+import datetime
 import time
 import requests
 import threading
@@ -60,8 +61,10 @@ class API_MANAGER:
         #                      #
         # Settings for threads #
         #                      #
-        self.THREADS_LIST = []
+        self.DYNAMIC_TIME_REQUEST: list[(datetime.datetime, int)] = []
         self.CLOSING = threading.Event()
+        self.CLOCK_WORKER = threading.Thread(target=self.__clock_worker)
+        self.THREADS_LIST = [self.CLOCK_WORKER]
 
         #                   #
         # Custom attributes #
@@ -69,6 +72,10 @@ class API_MANAGER:
         self.TOTAL_SENT_REQUESTS = 0
         self.logs_on = logs_on
 
+        #       #
+        # Ready #
+        #       #
+        self.CLOCK_WORKER.start()
         self.__print_log(f"{type(self)} ready")
 
     def __del__(self):
@@ -86,6 +93,8 @@ class API_MANAGER:
             self.__print_log("Closing")
             # Activating the closing event to end all the threads sons
             self.CLOSING.set()
+            # Clearing the left requests clock list
+            self.DYNAMIC_TIME_REQUEST.clear()
 
     def raise_exception(self, error_text: str):
         """
@@ -105,6 +114,20 @@ class API_MANAGER:
         if self.logs_on:
             print(f"riot_api_manipulation: {log}")
 
+    def __clock_worker(self):
+        """
+        Threaded, permits to check time and re add left requests
+        """
+        while self.CLOSING.is_set() is False:
+            # Resetting left requests if time is out
+            for (timeout_time, number_of_requests) in self.DYNAMIC_TIME_REQUEST:
+                if timeout_time < datetime.datetime.now():
+                    self.LEFT_REQUESTS_PER_SECOND += number_of_requests
+                    self.DYNAMIC_TIME_REQUEST.remove((timeout_time, number_of_requests))
+
+            # Waiting for ten milliseconds
+            time.sleep(0.1)
+
     def not_implemented_by_riot(self):
         self.raise_exception("Not implemented by RIOT")
 
@@ -118,24 +141,9 @@ class API_MANAGER:
         self.LEFT_REQUESTS -= number_of_requests
         self.LEFT_REQUESTS_PER_SECOND -= number_of_requests
 
-        # Starting manual clock
-        delay = self.RIOT_RECOVERING_DELAY_IN_SECONDS
-        one_second_passed = self.RIOT_RECOVERING_DELAY_IN_SECONDS - 1
-        while delay > 0:
-            # Checking if the api manager is closing
-            if self.CLOSING.is_set():
-                break
-
-            # Delay of one second
-            time.sleep(1)
-            delay -= 1
-
-            # Updating left requests per second
-            if delay == one_second_passed:
-                self.LEFT_REQUESTS_PER_SECOND += number_of_requests
-
-        # Updating left requests
-        self.LEFT_REQUESTS += number_of_requests
+        # Sending info to clock
+        timeout_time = datetime.datetime.now() + datetime.timedelta(seconds=self.RIOT_RECOVERING_DELAY_IN_SECONDS)
+        self.DYNAMIC_TIME_REQUEST.append((timeout_time, number_of_requests))
 
     def are_there_enough_requests_slots(self, needed_slots):
         return self.LEFT_REQUESTS >= needed_slots
@@ -180,9 +188,7 @@ class API_MANAGER:
                     self.raise_exception("Impossible to run this amount of requests with your apiKey capacity")
 
         # Threading the used slots recovering
-        delay_thread = threading.Thread(target=self.delay_requests, args=(number_of_requests,))
-        self.THREADS_LIST.append(delay_thread)
-        delay_thread.start()
+        self.delay_requests(number_of_requests)
 
     def get_json(self, url):
         """
