@@ -172,6 +172,7 @@ class Lol_Match:
         if json is not None:
             self.metadata = json['metadata']
             self.infos = json['info']
+            self.gamemode = json['info']['gameMode']
 
     def __str__(self):
         if self.infos is not None:
@@ -206,6 +207,7 @@ class Lol_Match:
             self.json = json
             self.metadata = json['metadata']
             self.infos = json['info']
+            self.gamemode = json['info']['gameMode']
 
         # Return statement
         return self.json if raw_json else self

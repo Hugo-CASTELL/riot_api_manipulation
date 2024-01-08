@@ -31,7 +31,7 @@ def keys():
 
 @pytest.fixture()
 def basic_api_riot(setup):
-    return API_RIOT(setup['key'], setup['region'], setup['server'], logs_on=False)
+    return API_RIOT(setup['key'], setup['region'], setup['server'], debug=False)
 
 
 @pytest.fixture()

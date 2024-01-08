@@ -19,12 +19,12 @@ def setup():
 
 @pytest.fixture()
 def basic_api_riot(setup):
-    return API_RIOT(setup['key'], setup['region'], setup['server'], logs_on=False)
+    return API_RIOT(setup['key'], setup['region'], setup['server'], debug=False)
 
 
 @pytest.fixture()
 def basic_api_riot_prod_key(setup):
-    return API_RIOT(setup['key'], setup['region'], setup['server'], logs_on=False, is_prod_key=True)
+    return API_RIOT(setup['key'], setup['region'], setup['server'], debug=False, is_prod_key=True)
 
 
 @pytest.fixture()
