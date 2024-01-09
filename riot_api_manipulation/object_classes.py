@@ -108,6 +108,19 @@ class Summoner:
         if self.api_league is None:
             raise Exception(f"Summoner: {self.summoner_name} has no internal api league specified.")
 
+        # Returning matches if already loaded
+        if raw_json is False and len(self.match_history) >= start_number+nb_matches:
+            # Checking if there is no None in the range
+            everything_loaded: bool = True
+            for match in self.match_history[start_number:start_number+nb_matches]:
+                if match is None:
+                    everything_loaded = False
+                    break
+
+            # Returning matches if everything is loaded
+            if everything_loaded:
+                return self.match_history[start_number:start_number+nb_matches]
+
         # Getting data
         matches = self.api_league.list_match_only_ids(self.puuid, nb_matches, start_number, queue,
                                                       summoner_associated=self, raw_json=raw_json)
@@ -134,6 +147,52 @@ class Summoner:
                         match.get_infos()
                     elif load_timelines is True:
                         match.get_timeline()
+
+        return matches
+
+    def get_match_history_by_gamemode(self, gamemode: str, nb_matches: int = 30, start_number: int = 0, queue: QueueType = None):
+        """
+        Returns summoner's loaded_match history by gamemode
+
+        :param gamemode: gamemode filter
+        :param nb_matches: number of matches loaded
+        :param start_number: start number in history
+        :param queue: by default as None to ensure loading all matches, queue is a filter
+        :return: list[Lol_Match]
+        """
+        def check_history(start: int, final_matches):
+            for loaded_match in self.match_history[start:]:
+                # Loading infos in case it is not
+                loaded_match.get_infos()
+
+                # Append if gamemode is the one searched
+                if loaded_match.gamemode == gamemode and (queue is None or loaded_match.queue == queue.value):
+                    final_matches.append(loaded_match)
+
+                # If enough matches, return True
+                if len(matches) >= nb_matches:
+                    return True
+
+            # If not enough matches, return False
+            return False
+
+        matches = []
+        # If enough matches loaded in history, search in it
+        if start_number <= len(self.match_history):
+            if check_history(start_number, matches) is True:
+                return matches
+
+        # If not enough matches in history, search for it infinitely by loading every loaded_match until enough
+        pool_number = 30
+        tracker = 0
+        while check_history(start_number+nb_matches+tracker, matches) is False:
+            tracker += pool_number
+
+            # Getting a list of 50 matches to check for
+            loaded_matches = self.get_match_history(pool_number, start_number=start_number+nb_matches+tracker, queue=queue)
+
+            if len(loaded_matches) == 0:
+                raise Exception(f"Summoner: summoner has not {nb_matches} games of {gamemode} {f'in {queue.value}' if queue is not None else ''}.")
 
         return matches
 
@@ -170,9 +229,7 @@ class Lol_Match:
         self.json = json
         self.json_timeline = json_timeline
         if json is not None:
-            self.metadata = json['metadata']
-            self.infos = json['info']
-            self.gamemode = json['info']['gameMode']
+            self.__process_json(json)
 
     def __str__(self):
         if self.infos is not None:
@@ -185,6 +242,17 @@ class Lol_Match:
             raise Exception(f"Lol_Match: {self.match_id} infos (json) is not loaded.")
 
         return self.json['metadata'][item]
+
+    #                         #
+    # --- Private helpers --- #
+    #                         #
+    def __process_json(self, json):
+        self.json = json
+        self.metadata = json['metadata']
+        self.infos = json['info']
+        self.gamemode = json['info']['gameMode']
+        self.queue = json['info']['gameType']
+        self.type = self.queue
 
     #                   #
     # --- Shortcuts --- #
@@ -204,10 +272,7 @@ class Lol_Match:
             json = self.api_league.get_match_infos(self.match_id, raw_json=True)
 
             # Processing for object
-            self.json = json
-            self.metadata = json['metadata']
-            self.infos = json['info']
-            self.gamemode = json['info']['gameMode']
+            self.__process_json(json)
 
         # Return statement
         return self.json if raw_json else self
