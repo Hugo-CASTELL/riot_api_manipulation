@@ -2,9 +2,9 @@ import datetime
 import time
 import requests
 import threading
-from riot_api_manipulation.enums import *
+from riot_api_manipulation.enums import Region, Server, QueueType 
 from riot_api_manipulation.urls import URL_MANAGER
-from riot_api_manipulation.object_classes import *
+from riot_api_manipulation.object_classes import Riot_Account, Summoner, Lol_Match, Champion_Rotation
 
 
 class API_MANAGER:

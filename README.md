@@ -1,5 +1,5 @@
 # riot_api_manipulation : access games' data with ease
-![Logo Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) [![Version 0.0.7](https://img.shields.io/badge/0.0.7-%2316c60c.svg?style=for-the-badge&label=version)](https://test.pypi.org/project/riot-api-manipulation/)
+![Logo Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) [![Version 0.0.8](https://img.shields.io/badge/0.0.8-%2316c60c.svg?style=for-the-badge&label=version)](https://test.pypi.org/project/riot-api-manipulation/)
 
 [riot_api_manipulation](https://test.pypi.org/project/riot-api-manipulation/) is a python library designed to manipulate [Riot APIs](https://developer.riotgames.com/apis) with ease. Its key benefits include three fundamentals : simple usage, technical abstraction and reliability.
 
@@ -12,7 +12,7 @@ pip install --index-url https://test.pypi.org/simple/ riot-api-manipulation
 
 ###### Upgrade
 ```python
-pip install --upgrade --index-url https://test.pypi.org/simple/ riot-api-manipulation 
+pip install --upgrade --index-url https://test.pypi.org/simple/ --no-deps riot-api-manipulation 
 ```
 
 ## 💯 Covering
