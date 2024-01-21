@@ -1,9 +1,10 @@
+import datetime
 import time
 import requests
 import threading
-from riot_api_manipulation.enums import *
+from riot_api_manipulation.enums import Region, Server, QueueType 
 from riot_api_manipulation.urls import URL_MANAGER
-from riot_api_manipulation.object_classes import *
+from riot_api_manipulation.object_classes import Riot_Account, Summoner, Lol_Match, Champion_Rotation
 
 
 class API_MANAGER:
@@ -13,7 +14,7 @@ class API_MANAGER:
     def __init__(self, key: str, region: Region, region_server: Server, is_prod_key: bool = False,
                  custom_max_requests_capacity: int = None, custom_max_requests_capacity_per_second: int = None,
                  custom_delay_for_recovering_all_requests: int = None,
-                 logs_on: bool = True):
+                 debug: bool = False):
         """
         Api manager, left requests auto-tracking, handle rate limit exceptions and has functions to reach API easily
 
@@ -60,16 +61,22 @@ class API_MANAGER:
         #                      #
         # Settings for threads #
         #                      #
-        self.THREADS_LIST = []
+        self.DYNAMIC_TIME_REQUEST: list[(datetime.datetime, int)] = []
         self.CLOSING = threading.Event()
+        self.CLOCK_WORKER = threading.Thread(target=self.__clock_worker)
+        self.THREADS_LIST = [self.CLOCK_WORKER]
 
         #                   #
         # Custom attributes #
         #                   #
         self.TOTAL_SENT_REQUESTS = 0
-        self.logs_on = logs_on
+        self.debug = debug
 
-        self.__print_log(f"{type(self)} ready")
+        #       #
+        # Ready #
+        #       #
+        self.CLOCK_WORKER.start()
+        self.print_log(f"{type(self)} ready")
 
     def __del__(self):
         # Closing on delete to avoid processes running with no father
@@ -83,9 +90,14 @@ class API_MANAGER:
         Closes the api manager
         """
         if self.CLOSING.is_set() is False:
-            self.__print_log("Closing")
+            # Log
+            self.print_log("Closing")
+
             # Activating the closing event to end all the threads sons
             self.CLOSING.set()
+
+            # Clearing the left requests clock list
+            self.DYNAMIC_TIME_REQUEST.clear()
 
     def raise_exception(self, error_text: str):
         """
@@ -96,14 +108,28 @@ class API_MANAGER:
         self.close()
         raise Exception(f"riot_api_manipulation: {error_text}")
 
-    def __print_log(self, log: str):
+    def print_log(self, log: str):
         """
         Print log if logs are set to on
 
         :param log: log text
         """
-        if self.logs_on:
+        if self.debug:
             print(f"riot_api_manipulation: {log}")
+
+    def __clock_worker(self):
+        """
+        Threaded, permits to check time and re add left requests
+        """
+        while self.CLOSING.is_set() is False:
+            # Resetting left requests if time is out
+            for (timeout_time, number_of_requests) in self.DYNAMIC_TIME_REQUEST:
+                if timeout_time < datetime.datetime.now():
+                    self.LEFT_REQUESTS_PER_SECOND += number_of_requests
+                    self.DYNAMIC_TIME_REQUEST.remove((timeout_time, number_of_requests))
+
+            # Waiting for ten milliseconds
+            time.sleep(0.1)
 
     def not_implemented_by_riot(self):
         self.raise_exception("Not implemented by RIOT")
@@ -118,24 +144,9 @@ class API_MANAGER:
         self.LEFT_REQUESTS -= number_of_requests
         self.LEFT_REQUESTS_PER_SECOND -= number_of_requests
 
-        # Starting manual clock
-        delay = self.RIOT_RECOVERING_DELAY_IN_SECONDS
-        one_second_passed = self.RIOT_RECOVERING_DELAY_IN_SECONDS - 1
-        while delay > 0:
-            # Checking if the api manager is closing
-            if self.CLOSING.is_set():
-                break
-
-            # Delay of one second
-            time.sleep(1)
-            delay -= 1
-
-            # Updating left requests per second
-            if delay == one_second_passed:
-                self.LEFT_REQUESTS_PER_SECOND += number_of_requests
-
-        # Updating left requests
-        self.LEFT_REQUESTS += number_of_requests
+        # Sending info to clock
+        timeout_time = datetime.datetime.now() + datetime.timedelta(seconds=self.RIOT_RECOVERING_DELAY_IN_SECONDS)
+        self.DYNAMIC_TIME_REQUEST.append((timeout_time, number_of_requests))
 
     def are_there_enough_requests_slots(self, needed_slots):
         return self.LEFT_REQUESTS >= needed_slots
@@ -152,7 +163,7 @@ class API_MANAGER:
         # Critical point => number of requests by second
         if self.LEFT_REQUESTS_PER_SECOND < number_of_requests:
             # Waiting for slots
-            self.__print_log(f"Waiting for requests slots in a second")
+            self.print_log(f"Waiting for requests slots in a second")
             enough_slots = self.are_there_enough_requests_slots_in_second(number_of_requests)
             iter_counter = 0
             while enough_slots is False:
@@ -167,7 +178,7 @@ class API_MANAGER:
 
         # Waiting for enough requests slots if needed
         if self.LEFT_REQUESTS < number_of_requests:
-            self.__print_log(f"Waiting for requests slots : maximum waiting {self.RIOT_RECOVERING_DELAY_IN_SECONDS}s")
+            self.print_log(f"Waiting for requests slots : maximum waiting {self.RIOT_RECOVERING_DELAY_IN_SECONDS}s")
             enough_slots = self.are_there_enough_requests_slots(number_of_requests)
             iter_counter = 0
             while enough_slots is False:
@@ -180,9 +191,7 @@ class API_MANAGER:
                     self.raise_exception("Impossible to run this amount of requests with your apiKey capacity")
 
         # Threading the used slots recovering
-        delay_thread = threading.Thread(target=self.delay_requests, args=(number_of_requests,))
-        self.THREADS_LIST.append(delay_thread)
-        delay_thread.start()
+        self.delay_requests(number_of_requests)
 
     def get_json(self, url):
         """
@@ -191,6 +200,9 @@ class API_MANAGER:
         :param url:
         :return: riot's response json
         """
+        # Log
+        self.print_log(f"Requesting: {url}")
+
         # Notifying one request used
         self.prepare_sending(1)
 
@@ -223,7 +235,7 @@ class API_MANAGER:
         elif code == 504:
             self.raise_exception("504 : Gateway timeout -> Absent or not enough internet connection")
         elif code == 429:  # 429 : Rate limit exceeded => delay request
-            self.__print_log(f"Rate limit was exceeded, retry in {self.RIOT_RECOVERING_DELAY_IN_SECONDS}s")
+            self.print_log(f"Rate limit was exceeded, auto retry in {self.RIOT_RECOVERING_DELAY_IN_SECONDS} seconds")
             time.sleep(self.RIOT_RECOVERING_DELAY_IN_SECONDS)
             self.get_json(url)
             return
@@ -238,6 +250,9 @@ class API_RIOT(API_MANAGER):
     # --- Private helpers --- #
     #                         #
     def __process_riot_account(self, url: str, raw_json: bool):
+        # Log
+        self.print_log(f"Getting riot account")
+
         # Getting data
         json = self.get_json(url)
 
@@ -290,6 +305,9 @@ class API_RIOT(API_MANAGER):
         url = self.URLS.RIOT.ACCOUNT_V1.by_game_and_puuid(game_abbreviating, puuid)
         json = self.get_json(url)
 
+        # Log
+        self.print_log(f"Getting riot account activeshard (game_abbreviating: {game_abbreviating}, puuid: {puuid})")
+
         # Exploiting data
         return json if raw_json is True else json['activeShard']
 
@@ -299,6 +317,9 @@ class API_LOL(API_RIOT):
     # --- Private helpers --- #
     #                         #
     def __process_summoner(self, url: str, raw_json: bool):
+        # Log
+        self.print_log(f"Getting summoner")
+
         # Getting data
         json = self.get_json(url)
 
@@ -318,6 +339,21 @@ class API_LOL(API_RIOT):
         :param raw_json: by default as False, permits to return raw json if set to True
         """
         url = self.URLS.LOL.SUMMONER_V4.by_summoner_name(summoner_name)
+
+        return self.__process_summoner(url, raw_json)
+
+    def get_summoner_by_name_and_tagline(self, summoner_name: str, tagline: str,
+                                         raw_json: bool = False):
+        """
+        Returns summoner find by name and tagline
+
+        :param summoner_name: in-game summoner name
+        :param tagline: summoner tag line (without #)
+        :param raw_json: by default as False, permits to return raw json if set to True
+        """
+        riot_account = self.get_riot_account_by_ingamename_and_tagline(summoner_name, tagline)
+
+        url = self.URLS.LOL.SUMMONER_V4.by_summoner_puuid(riot_account.puuid)
 
         return self.__process_summoner(url, raw_json)
 
@@ -370,6 +406,9 @@ class API_LOL(API_RIOT):
         :param summoner_associated: object class Summoner associated if there is one
         :param raw_json: by default as False, permits to return raw json if set to True
         """
+        # Log
+        self.print_log(f"Getting match ids (puuid: {puuid}, nb_matches: {nb_matches}, start_number: {start_number}, queue: {queue})")
+
         # Static
         max_ids_per_request = 100
 
@@ -406,6 +445,9 @@ class API_LOL(API_RIOT):
         :param match_id: match id
         :param raw_json: by default as False, permits to return raw json if set to True
         """
+        # Log
+        self.print_log(f"Getting match infos (match_id: {match_id})")
+
         # Getting data
         url = self.URLS.LOL.MATCH_V5.match_infos(match_id)
         json = self.get_json(url)
@@ -421,6 +463,9 @@ class API_LOL(API_RIOT):
         :param match_id: match id
         :param raw_json: by default as False, permits to return raw json if set to True
         """
+        # Log
+        self.print_log(f"Getting match timeline (match_id: {match_id})")
+
         # Getting data
         url = self.URLS.LOL.MATCH_V5.match_timeline(match_id)
         json = self.get_json(url)
@@ -436,6 +481,9 @@ class API_LOL(API_RIOT):
 
         :param raw_json: by default as False, permits to return raw json if set to True
         """
+        # Log
+        self.print_log(f"Getting champion rotation")
+
         # Getting data
         url = self.URLS.LOL.CHAMPION_V3.champion_rotation()
         json = self.get_json(url)
@@ -451,6 +499,9 @@ class API_VALORANT(API_RIOT):
     # MATCH V1
     def list_match_ids(self, puuid: str,
                        raw_json: bool = False):
+        # Log
+        self.print_log(f"Getting match ids (puuid: {puuid})")
+
         # Getting data
         url = self.URLS.VAL.MATCH_V1.match_ids(puuid)
         json = self.get_json(url)
@@ -459,6 +510,9 @@ class API_VALORANT(API_RIOT):
         return json if raw_json else [match_id for match_id in json]
 
     def get_match_infos(self, match_id: str):
+        # Log
+        self.print_log(f"Getting match infos (match_id: {match_id})")
+
         # Getting data
         url = self.URLS.VAL.MATCH_V1.match_infos(match_id)
         json = self.get_json(url)

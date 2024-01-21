@@ -4,13 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "riot_api_manipulation"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
-    "enum",
-    "json",
-    "time",
     "requests",
-    "threading",
 ]
 authors = [
   { name="Hugo CASTELL", email="hugo.castell@outlook.fr" },
@@ -20,7 +16,7 @@ maintainers = [
 ]
 description = "Python library for manipulating Riot Games API easily"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",

@@ -85,7 +85,7 @@ def summoner_keys():
 
 @pytest.fixture()
 def basic_api_league(setup):
-    return API_LOL(setup['key'], setup['region'], setup['server'], logs_on=False)
+    return API_LOL(setup['key'], setup['region'], setup['server'], debug=False)
 
 
 @pytest.fixture()
