@@ -91,7 +91,7 @@ class Summoner:
     #                   #
     # --- Shortcuts --- #
     #                   #
-    def get_match_history(self, nb_matches: int = 30, start_number: int = 0, queue: QueueType = None,
+    def get_match_history(self, nb_matches: int = 30, start_number: int = 0, queue: QueueType | None = None,
                           load_infos: bool = False, load_timelines: bool = False,
                           raw_json: bool = False):
         """
@@ -150,7 +150,7 @@ class Summoner:
 
         return matches
 
-    def get_match_history_by_gamemode(self, gamemode: str, nb_matches: int = 30, start_number: int = 0, queue: QueueType = None):
+    def get_match_history_by_gamemode(self, gamemode: str, nb_matches: int = 30, start_number: int = 0, queue: QueueType | None = None):
         """
         Returns summoner's loaded_match history by gamemode
 
@@ -196,7 +196,7 @@ class Summoner:
 
         return matches
 
-    def get_last_game(self, queue: QueueType = None,
+    def get_last_game(self, queue: QueueType | None = None,
                       raw_json: bool = False):
         """
         Returns summoner's last game (id only or Lol_Match)
@@ -213,7 +213,7 @@ class Lol_Match:
     # --- Constructor and built-in overrides --- #
     #                                            #
     def __init__(self, match_id,
-                 summoner: Summoner = None, json=None, json_timeline=None, api_league=None):
+                 summoner: Summoner | None = None, json=None, json_timeline=None, api_league=None):
         """
         Object class permitting to store a Lol_Match (MATCH V5) and perform shortcuts api calls
 
@@ -306,7 +306,7 @@ class Lol_Match:
         return self
 
     def get_infos_of_summoner(self,
-                              puuid: str = None):
+                              puuid: str | None = None):
         """
         Returns summoner (by default self.summoner or custom puuid) game's infos found in infos json in the Lol_Match
         """
@@ -316,7 +316,11 @@ class Lol_Match:
         if self.json is None:
             self.get_infos()
 
-        index = self.metadata['participants'].index(self.summoner.puuid if puuid is None else puuid)
+        if (self.summoner is None or self.summoner.puuid is None) and puuid is None:
+            raise Exception(f"Lol_Match: {self.match_id}. You must specify a puuid or summoner in order to reach its games' infos.")
+
+        summoner_puuid = Summoner(self.summoner).puuid if puuid is None else puuid
+        index = self.metadata['participants'].index(summoner_puuid)
         return self.infos['participants'][index]
 
 
@@ -346,5 +350,3 @@ class Champion_Rotation:
             self.free_champion_ids_for_new_players = json_builder['freeChampionIdsForNewPlayers']
 
         self.api_league = api_league
-
-# endregion

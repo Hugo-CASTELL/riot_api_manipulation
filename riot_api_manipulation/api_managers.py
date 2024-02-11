@@ -1,5 +1,6 @@
 import datetime
 import time
+from typing import Any, Tuple
 import requests
 import threading
 from riot_api_manipulation.enums import Region, Server, QueueType 
@@ -12,8 +13,8 @@ class API_MANAGER:
     # --- Constructor and built-in overrides --- #
     #                                            #
     def __init__(self, key: str, region: Region, region_server: Server, is_prod_key: bool = False,
-                 custom_max_requests_capacity: int = None, custom_max_requests_capacity_per_second: int = None,
-                 custom_delay_for_recovering_all_requests: int = None,
+                 custom_max_requests_capacity: int | None = None, custom_max_requests_capacity_per_second: int | None = None,
+                 custom_delay_for_recovering_all_requests: int | None = None,
                  debug: bool = False):
         """
         Api manager, left requests auto-tracking, handle rate limit exceptions and has functions to reach API easily
@@ -61,7 +62,7 @@ class API_MANAGER:
         #                      #
         # Settings for threads #
         #                      #
-        self.DYNAMIC_TIME_REQUEST: list[(datetime.datetime, int)] = []
+        self.DYNAMIC_TIME_REQUEST: list[Tuple[datetime.datetime, int]] = []
         self.CLOSING = threading.Event()
         self.CLOCK_WORKER = threading.Thread(target=self.__clock_worker)
         self.THREADS_LIST = [self.CLOCK_WORKER]
@@ -193,7 +194,7 @@ class API_MANAGER:
         # Threading the used slots recovering
         self.delay_requests(number_of_requests)
 
-    def get_json(self, url):
+    def get_json(self, url) -> Any:
         """
         Reach RIOT's API, handle errors and returns response as json
 
@@ -242,6 +243,11 @@ class API_MANAGER:
 
         # If no errors then return json
         json = response.json()
+
+        # Check if json is None
+        if json is None:
+            self.raise_exception("json is None")
+
         return json
 
 
@@ -353,7 +359,7 @@ class API_LOL(API_RIOT):
         """
         riot_account = self.get_riot_account_by_ingamename_and_tagline(summoner_name, tagline)
 
-        url = self.URLS.LOL.SUMMONER_V4.by_summoner_puuid(riot_account.puuid)
+        url = self.URLS.LOL.SUMMONER_V4.by_puuid(riot_account.puuid)
 
         return self.__process_summoner(url, raw_json)
 
@@ -394,7 +400,7 @@ class API_LOL(API_RIOT):
         return self.__process_summoner(url, raw_json)
 
     # MATCH V5
-    def list_match_only_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType = None,
+    def list_match_only_ids(self, puuid: str, nb_matches: int, start_number: int = 0, queue: QueueType | None = None,
                             summoner_associated=None, raw_json: bool = False):
         """
         Returns a list of Lol_Match where only id is loaded
